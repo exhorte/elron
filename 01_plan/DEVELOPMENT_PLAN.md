@@ -35,3 +35,20 @@ Principe : petits lots cohérents, chacun avec critères d'acceptation, tests et
 | 15 | Limites et intégrations manquantes documentées | ✅ | `PROJECT_STATE.md`, `/about`, ce document |
 
 ⚠️ « MVP fonctionnel » ≠ « prêt à ouvrir au public » : voir les limites bloquantes n°1 et n°2 de `PROJECT_STATE.md`.
+
+## Risques
+
+| Risque | Nature | Bloque quoi | Atténuation en place / à faire |
+|---|---|---|---|
+| **Statut juridique** (simple mise en relation vs transporteur/opérateur postal ; licence courrier — l'ARTP au Sénégal est citée dans la conversation, non vérifié) | Réglementaire, **humain** | Ouverture publique | Aucune règle inventée ; validation professionnelle (NEXT_STEPS P0.2) |
+| **Marchandises interdites ou soumises à contrôle** (douane, aérien, médicaments) | Réglementaire / sécurité | Ouverture publique | Politique interne en 3 niveaux, opt-in du transporteur, déclaration détaillée, inspection à la remise ; **non validée** |
+| **Fraude et confiance** (identité déclarée, faux colis, vol) | Produit | Montée en charge | Déclaré ≠ vérifié, revue opérateur, code de remise, journal d'audit ; manquent notation, litiges outillés, OTP téléphone |
+| **Contournement** (accord conclu sur WhatsApp hors plateforme) | Modèle économique | Revenus | Aucune commission aujourd'hui (0 bps) ; valeur à créer par la confiance, le suivi et la réputation — à valider sur le terrain |
+| **Démarrage à froid** (pas d'offres sans voyageurs, pas de voyageurs sans demandes) | Marché | Adoption | Un seul couloir ; données réelles uniquement ; validation terrain avant les lots 3+ |
+| **Paiement et séquestre** | Réglementaire / technique | Lot 6 | Aucun paiement (D-015) ; choix du prestataire = décision humaine |
+| **Données personnelles** (destinataires, téléphones, identités) | Réglementaire | Ouverture publique | Minimisation (aucune pièce stockée), visibilité restreinte aux parties ; politique de confidentialité et conformité locale à produire |
+| **Responsabilité / assurance** en cas de perte ou dommage | Juridique | Ouverture publique | Statuts et litiges modélisés ; aucune garantie affichée ; clauses à rédiger |
+| **Charge opérateur** (revue d'identités, litiges) | Opérationnel | Montée en charge | Interface minimale ; outillage au lot 2 |
+| **Hypothèses non vérifiées** (fonctions de YOBU/Grabr, tarifs, demande Europe↔Afrique) | Connaissance | Priorisation | `BENCHMARK.md` distingue confirmé/inconnu ; validation terrain |
+
+Aucune dépendance technique ne bloque la suite : les blocages sont **juridiques et de décision** (NEXT_STEPS P0).
