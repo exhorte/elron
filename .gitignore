@@ -1,0 +1,29 @@
+# dependencies / build
+node_modules/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# secrets and local config — never commit
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# local tooling
+.claude/settings.local.json
+
+# Contient des numéros de téléphone de tiers (annonces Facebook/WhatsApp) :
+# ne pas publier dans un dépôt public sans décision explicite du porteur du projet.
+# Retirer cette ligne seulement après cette décision.
+02_context/expedition colis_compressed.pdf
+
+# configuration locale de l'outil de prévisualisation
+.claude/launch.json
