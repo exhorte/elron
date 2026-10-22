@@ -1,0 +1,2015 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "African Logistics Exchange (ALX) — API v1",
+    "version": "0.1.0",
+    "description": "API du MVP (lot 1). Succès : `{ data }`. Erreur : `{ error: { code, message, details? } }`. Montants en unités mineures entières (XOF/XAF : francs ; EUR/CAD/USD : centimes) ; poids en grammes. Aucun paiement n'est implémenté (hors périmètre). La politique de catégories de marchandises est interne et NON validée juridiquement. Les données de démonstration (`isDemo`) ne sont jamais mélangées aux données réelles. Fichier généré : `npm run docs:openapi`."
+  },
+  "servers": [
+    {
+      "url": "/"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Système"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Profils"
+    },
+    {
+      "name": "Recherche"
+    },
+    {
+      "name": "Offres"
+    },
+    {
+      "name": "Demandes"
+    },
+    {
+      "name": "Réservations"
+    },
+    {
+      "name": "Colis"
+    },
+    {
+      "name": "Administration"
+    }
+  ],
+  "paths": {
+    "/api/v1/health": {
+      "get": {
+        "tags": [
+          "Système"
+        ],
+        "summary": "Santé de l'application et de la base",
+        "security": [],
+        "x-auth": "none",
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          }
+        }
+      }
+    },
+    "/api/v1/meta": {
+      "get": {
+        "tags": [
+          "Système"
+        ],
+        "summary": "Référentiels publics : couloirs ouverts, catégories de marchandises (politique non validée juridiquement), devises",
+        "security": [],
+        "x-auth": "none",
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/register": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Créer un compte et ouvrir une session",
+        "security": [],
+        "x-auth": "none",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 10,
+                    "maxLength": 128
+                  },
+                  "displayName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80
+                  },
+                  "phone": {
+                    "type": "string"
+                  },
+                  "asTraveler": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "email",
+                  "password",
+                  "displayName"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Se connecter (5 échecs → verrouillage 15 min)",
+        "security": [],
+        "x-auth": "none",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Fermer la session",
+        "security": [],
+        "x-auth": "none",
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "tags": [
+          "Profils"
+        ],
+        "summary": "Utilisateur courant et profil voyageur",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/me/traveler-profile": {
+      "put": {
+        "tags": [
+          "Profils"
+        ],
+        "summary": "Créer/mettre à jour le profil voyageur ; déclarer une identité (statut « declared », jamais « verified »)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "bio": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "declaredLegalName": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "declaredIdKind": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "national_id",
+                          "passport",
+                          "residence_permit"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/search/offers": {
+      "get": {
+        "tags": [
+          "Recherche"
+        ],
+        "summary": "Offres compatibles, classées par score transparent (filtres obligatoires + critères pondérés)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "optional",
+        "parameters": [
+          {
+            "name": "origin",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]{2}-[a-z0-9-]{2,40}$"
+            }
+          },
+          {
+            "name": "destination",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-z]{2}-[a-z0-9-]{2,40}$"
+            }
+          },
+          {
+            "name": "weightKg",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "clothing",
+                "books_misc",
+                "documents",
+                "food_dry",
+                "cosmetics_hair",
+                "electronics",
+                "jewelry_valuables",
+                "medicines",
+                "weapons_ammunition",
+                "explosives_hazardous",
+                "illicit_drugs",
+                "cash_bearer_instruments",
+                "counterfeit_goods"
+              ]
+            }
+          },
+          {
+            "name": "departureFrom",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "departureTo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "budgetMaxMinor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000000000
+            }
+          },
+          {
+            "name": "budgetCurrency",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "XOF",
+                "XAF",
+                "EUR",
+                "CAD",
+                "USD"
+              ]
+            }
+          },
+          {
+            "name": "demo",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1",
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "name": "explain",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "0",
+                "1",
+                "true",
+                "false"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/offers": {
+      "get": {
+        "tags": [
+          "Offres"
+        ],
+        "summary": "Mes offres de capacité",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Offres"
+        ],
+        "summary": "Publier une offre de capacité (profil voyageur requis)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "originCityId": {
+                    "type": "string",
+                    "pattern": "^[a-z]{2}-[a-z0-9-]{2,40}$"
+                  },
+                  "destinationCityId": {
+                    "type": "string",
+                    "pattern": "^[a-z]{2}-[a-z0-9-]{2,40}$"
+                  },
+                  "transportMode": {
+                    "type": "string",
+                    "enum": [
+                      "air",
+                      "bus",
+                      "car",
+                      "train",
+                      "other"
+                    ]
+                  },
+                  "departureAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "arrivalEstimatedAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "depositCutoffAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "capacityWeightG": {
+                    "type": "integer",
+                    "minimum": 100,
+                    "maximum": 500000
+                  },
+                  "capacityVolumeL": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 5000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pricePerKgMinor": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 1000000000
+                  },
+                  "currency": {
+                    "type": "string",
+                    "enum": [
+                      "XOF",
+                      "XAF",
+                      "EUR",
+                      "CAD",
+                      "USD"
+                    ]
+                  },
+                  "acceptedCategories": {
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "clothing",
+                        "books_misc",
+                        "documents",
+                        "food_dry",
+                        "cosmetics_hair",
+                        "electronics",
+                        "jewelry_valuables",
+                        "medicines",
+                        "weapons_ammunition",
+                        "explosives_hazardous",
+                        "illicit_drugs",
+                        "cash_bearer_instruments",
+                        "counterfeit_goods"
+                      ]
+                    }
+                  },
+                  "handoverTerms": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "depositAddress": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 300
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "pickupAddress": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 300
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "originCityId",
+                  "destinationCityId",
+                  "transportMode",
+                  "departureAt",
+                  "capacityWeightG",
+                  "pricePerKgMinor",
+                  "currency",
+                  "acceptedCategories"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/offers/{id}": {
+      "get": {
+        "tags": [
+          "Offres"
+        ],
+        "summary": "Détail public d'une offre (sans adresses)",
+        "security": [],
+        "x-auth": "none",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/offers/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Offres"
+        ],
+        "summary": "Annuler mon offre (refusé s'il existe une réservation acceptée)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/requests": {
+      "get": {
+        "tags": [
+          "Demandes"
+        ],
+        "summary": "Mes demandes d'expédition",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Demandes"
+        ],
+        "summary": "Publier une demande d'expédition",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "originCityId": {
+                    "type": "string",
+                    "pattern": "^[a-z]{2}-[a-z0-9-]{2,40}$"
+                  },
+                  "destinationCityId": {
+                    "type": "string",
+                    "pattern": "^[a-z]{2}-[a-z0-9-]{2,40}$"
+                  },
+                  "weightG": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100000
+                  },
+                  "lengthCm": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 300
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "widthCm": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 300
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "heightCm": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 1,
+                        "maximum": 300
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "clothing",
+                      "books_misc",
+                      "documents",
+                      "food_dry",
+                      "cosmetics_hair",
+                      "electronics",
+                      "jewelry_valuables",
+                      "medicines",
+                      "weapons_ammunition",
+                      "explosives_hazardous",
+                      "illicit_drugs",
+                      "cash_bearer_instruments",
+                      "counterfeit_goods"
+                    ]
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  },
+                  "items": {
+                    "default": [],
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "description": {
+                          "type": "string",
+                          "minLength": 2,
+                          "maxLength": 200
+                        },
+                        "quantity": {
+                          "default": 1,
+                          "type": "integer",
+                          "minimum": 1,
+                          "maximum": 1000
+                        },
+                        "declaredValueMinor": {
+                          "anyOf": [
+                            {
+                              "type": "integer",
+                              "minimum": 0,
+                              "maximum": 1000000000
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "description"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "declaredValueMinor": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "declaredValueCurrency": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "XOF",
+                          "XAF",
+                          "EUR",
+                          "CAD",
+                          "USD"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "budgetMaxMinor": {
+                    "anyOf": [
+                      {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 1000000000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "budgetCurrency": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "enum": [
+                          "XOF",
+                          "XAF",
+                          "EUR",
+                          "CAD",
+                          "USD"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "budgetIsStrict": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "earliestDepartureAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "latestDepartureAt": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "neededBy": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "deadlineIsStrict": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "receiverName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "receiverPhone": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "originCityId",
+                  "destinationCityId",
+                  "weightG",
+                  "category",
+                  "description",
+                  "receiverName",
+                  "receiverPhone"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{id}": {
+      "get": {
+        "tags": [
+          "Demandes"
+        ],
+        "summary": "Détail d'une demande (auteur ou opérateur)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{id}/matches": {
+      "get": {
+        "tags": [
+          "Recherche"
+        ],
+        "summary": "Offres compatibles avec ma demande (?explain=1 liste les exclusions)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/requests/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Demandes"
+        ],
+        "summary": "Annuler ma demande ouverte",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/bookings": {
+      "get": {
+        "tags": [
+          "Réservations"
+        ],
+        "summary": "Mes réservations (?as=sender|provider)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "as",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "sender",
+                "provider"
+              ],
+              "default": "sender"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Réservations"
+        ],
+        "summary": "Demander à réserver de la capacité (aucune capacité réservée avant acceptation)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "requestId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "offerId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "message": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "requestId",
+                  "offerId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{id}": {
+      "get": {
+        "tags": [
+          "Réservations"
+        ],
+        "summary": "Détail d'une réservation (parties uniquement)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{id}/accept": {
+      "post": {
+        "tags": [
+          "Réservations"
+        ],
+        "summary": "Accepter (prestataire) : réserve la capacité et crée le colis dans une transaction",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{id}/reject": {
+      "post": {
+        "tags": [
+          "Réservations"
+        ],
+        "summary": "Refuser (prestataire)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/bookings/{id}/cancel": {
+      "post": {
+        "tags": [
+          "Réservations"
+        ],
+        "summary": "Retirer ma demande en attente (expéditeur)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/shipments": {
+      "get": {
+        "tags": [
+          "Colis"
+        ],
+        "summary": "Mes colis (expéditeur ou prestataire)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/shipments/{id}": {
+      "get": {
+        "tags": [
+          "Colis"
+        ],
+        "summary": "Détail, historique d'événements et transitions autorisées (parties/opérateur ; 404 pour un tiers)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/shipments/{id}/transitions": {
+      "post": {
+        "tags": [
+          "Colis"
+        ],
+        "summary": "Changer le statut selon la table de transitions et le rôle ; DELIVERED exige le code",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "to": {
+                    "type": "string",
+                    "enum": [
+                      "ACCEPTED",
+                      "HANDED_OVER",
+                      "IN_TRANSIT",
+                      "ARRIVED",
+                      "OUT_FOR_DELIVERY",
+                      "DELIVERED",
+                      "DELIVERY_FAILED",
+                      "DAMAGED",
+                      "LOST",
+                      "DISPUTED",
+                      "RETURNED",
+                      "CANCELLED"
+                    ]
+                  },
+                  "note": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "proofs": {
+                    "default": [],
+                    "maxItems": 5,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "type": {
+                          "type": "string",
+                          "enum": [
+                            "photo",
+                            "document",
+                            "other"
+                          ]
+                        },
+                        "reference": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 500
+                        },
+                        "description": {
+                          "anyOf": [
+                            {
+                              "type": "string",
+                              "maxLength": 200
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        }
+                      },
+                      "required": [
+                        "type",
+                        "reference"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "to"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/shipments/{id}/delivery-code": {
+      "post": {
+        "tags": [
+          "Colis"
+        ],
+        "summary": "Expéditeur : générer/régénérer le code de remise (affiché une seule fois)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/shipments/{id}/confirm-delivery": {
+      "post": {
+        "tags": [
+          "Colis"
+        ],
+        "summary": "Transporteur : confirmer la remise avec le code du destinataire (5 tentatives, expiration)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "user",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/track/{code}": {
+      "get": {
+        "tags": [
+          "Colis"
+        ],
+        "summary": "Suivi public par code (sans donnée personnelle)",
+        "security": [],
+        "x-auth": "none",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/identity-reviews": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Identités déclarées en attente de revue",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "operator",
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/identity-review": {
+      "post": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Décision d'opérateur sur une identité déclarée",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "operator",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "verified",
+                      "rejected"
+                    ]
+                  },
+                  "note": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "decision"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{id}/status": {
+      "post": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Suspendre/réactiver un compte (administrateur)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "admin",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "suspended"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "status",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "409": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/api/v1/admin/shipments": {
+      "get": {
+        "tags": [
+          "Administration"
+        ],
+        "summary": "Tous les colis (opérateur)",
+        "security": [
+          {
+            "cookieAuth": []
+          }
+        ],
+        "x-auth": "operator",
+        "responses": {
+          "200": {
+            "description": "Succès ; corps `{ \"data\": … }`"
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "alx_session"
+      }
+    },
+    "responses": {
+      "Error": {
+        "description": "Erreur applicative",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "error"
+              ],
+              "properties": {
+                "error": {
+                  "type": "object",
+                  "required": [
+                    "code",
+                    "message"
+                  ],
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "details": {}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Cibles tactiles confortables sur mobile */
+button,
+a,
+select,
+input,
+textarea {
+  @apply focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-emerald-600;
+}
