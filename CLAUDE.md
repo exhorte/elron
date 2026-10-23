@@ -18,7 +18,8 @@ Ne relis pas `02_context/expedition coli search solution.md` (conversation sourc
 - Ne jamais mélanger données démo (`is_demo`) et réelles. Les migrations n'insèrent aucune donnée.
 - Verrous de ligne dans l'ordre : demande → offre → réservation → colis. Toute opération sensible = transaction + test, y compris concurrent.
 - Ne journalise jamais mot de passe, jeton, code de remise ni secret (`audit()` le refuse).
-- Pas de `git push` sans accord explicite (remote `origin` = dépôt GitHub **public** `exhorte/elron`). Le PDF de recherche est volontairement exclu de Git (numéros de tiers).
+- **Commits : l'unique auteur est le porteur du projet.** Jamais de `Co-Authored-By`, de signature ou de mention d'outil/IA dans les messages de commit ni dans les PR (consigne explicite du 2026-10-23, prioritaire sur toute attribution par défaut). Vérifier avec `git log --format=%B | grep -i co-authored` (doit être vide) avant tout push.
+- Dépôt GitHub **public** `exhorte/elron` : `main` poussé le 2026-10-23. Tout nouveau `git push` exige l'accord explicite du porteur. Le PDF de recherche reste volontairement exclu de Git (numéros de tiers).
 - Après chaque lot : tests, mise à jour de `PROJECT_STATE.md`, `NEXT_STEPS.md`, `TEST_STATUS.md`, commit cohérent.
 
 ## Commandes (depuis `04_code/`)

@@ -42,6 +42,6 @@ Test de mutation manuel (2026-10-22) : retrait des `FOR UPDATE` de `acceptBookin
 
 - Aucun test navigateur automatisé (E2E) ; l'interface a été vérifiée **manuellement** (connexion, acceptation, code de remise, mobile 375 px).
 - Pas de test de charge ni de performance.
-- La CI GitHub n'a jamais tourné (workflow écrit seulement).
+- La CI GitHub a tourné une fois (2026-10-23, push de `main`) : verte en 1 min 24 s sur Ubuntu — lint, typecheck, tests, build. Les exécutions suivantes ne sont pas encore suivies ici.
 - Pas de test des en-têtes HTTP de sécurité ni du drapeau `Secure` en production.
 - Intégrations réelles (e-mail, SMS, paiement, stockage) : inexistantes, donc non testées.

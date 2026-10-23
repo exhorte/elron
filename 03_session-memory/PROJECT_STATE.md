@@ -1,13 +1,13 @@
 # PROJECT_STATE — African Logistics Exchange (ALX, nom provisoire)
 
-Dernière mise à jour : **2026-10-22** · Lot 1 (MVP) terminé · Git local : 1 commit, **non poussé**.
+Dernière mise à jour : **2026-10-22** · Lot 1 (MVP) terminé · Git : `main` poussé le 2026-10-23 vers https://github.com/exhorte/elron (public), auteur unique.
 
 ## Ce qui fonctionne (vérifié par tests automatisés + parcours manuel dans le navigateur)
 
 Parcours complet, de bout en bout, sur le couloir Dakar ↔ Abidjan :
 compte → profil voyageur (identité *déclarée*) → publication d'un trajet avec capacité → demande d'expédition → recherche publique classée (exclusions + score détaillé + drapeaux d'informations manquantes) → demande de réservation → acceptation/refus par le transporteur (réserve la capacité, crée le colis) → statuts contrôlés par rôle → code de remise généré par l'expéditeur, confirmé par le transporteur (usage unique, 5 essais, expiration) → historique et suivi public → tableau de bord → administration minimale (revue d'identité, liste des colis).
 
-- **Terminé** : audit, catalogue de réutilisation, benchmark, architecture, schéma + migrations (12 tables, triggers d'immutabilité), domaine pur, services transactionnels, 30 endpoints `/api/v1` + OpenAPI générée, UI mobile-first (15 pages), seed de démonstration isolé, CI (workflow écrit, jamais exécuté), documentation.
+- **Terminé** : audit, catalogue de réutilisation, benchmark, architecture, schéma + migrations (12 tables, triggers d'immutabilité), domaine pur, services transactionnels, 30 endpoints `/api/v1` + OpenAPI générée, UI mobile-first (15 pages), seed de démonstration isolé, CI GitHub (verte sur Linux le 2026-10-23 : lint, typecheck, 242 tests avec PostgreSQL, build), documentation.
 - **En cours** : rien.
 - **Tests** : 242 passent (voir `05_project_monitoring/TEST_STATUS.md`). `tsc`, `eslint` et `next build` passent.
 - **Vérifié manuellement (navigateur intégré)** : connexion, acceptation d'une réservation de démo, génération du code (affiché une fois), page colis côté transporteur et expéditeur, mise en page mobile 375 px sans défilement horizontal.
@@ -26,8 +26,8 @@ Monolithe Next.js + PostgreSQL (D-001) · auth maison scrypt + sessions (D-004) 
 | 4 | Preuves = simples références (pas de téléversement de fichiers) | Moyenne |
 | 5 | Pas de litiges outillés, de notation, de notifications, de points relais, d'agences, de devis, de multi-segments | Lots suivants |
 | 6 | Dates en GMT seulement ; interface en français seulement | Faible (couloir actuel) |
-| 7 | Le PDF d'annonces n'est pas dans Git (numéros de tiers) ; remote GitHub **public et vide**, rien poussé | Décision humaine |
-| 8 | Aucun test navigateur automatisé (E2E) ; CI jamais exécutée ; pas de Dockerfile applicatif ni de choix d'hébergement | Moyenne |
+| 7 | Le PDF d'annonces n'est pas dans Git (numéros de tiers) ; le dépôt GitHub est **public** et contient la conversation de recherche (`02_context/expedition coli search solution.md`) | Fait avec l'accord du porteur |
+| 8 | Aucun test navigateur automatisé (E2E) ; pas de Dockerfile applicatif ni de choix d'hébergement ; la CI utilise `actions/checkout@v4` et `setup-node@v4` (avertissement de dépréciation Node 20, forcés en Node 24) | Moyenne |
 | 9 | Un colis `LOST`/`DAMAGED` ne libère pas la capacité (volontaire : le trajet a eu lieu) | À confirmer métier |
 | 10 | Audit de licences transitif des dépendances non fait (seules les licences directes sont vérifiées) | Faible |
 

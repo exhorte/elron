@@ -2,7 +2,7 @@
 
 ## P0 — décisions humaines (rien d'autre ne les remplace)
 
-1. **Remote GitHub** : `exhorte/elron` est **public et vide**. Pousser tel quel publierait aussi la conversation de recherche. Décider : pousser (et si oui, le PDF reste-t-il exclu ?), ou rendre le dépôt privé d'abord. Aucun push n'a été fait.
+1. ~~Remote GitHub~~ **Fait le 2026-10-23** : `main` poussé vers `exhorte/elron` (public), auteur unique, PDF exclu. Reste à décider si le dépôt doit devenir privé (il publie la conversation de recherche).
 2. **Validation professionnelle** (juriste/transitaire) : (a) la politique de marchandises (`src/config/goods-policy.ts`, D-009) ; (b) le statut de la plateforme — simple mise en relation ou opérateur postal/transport (au Sénégal, l'ARTP rappelle qu'une licence est requise pour le courrier ; la conversation le signale, **non vérifié ici**) ; (c) responsabilité et assurance ; (d) protection des données (destinataires, téléphones).
 3. **Modèle de paiement** : choisir un prestataire compatible marketplace dans les pays visés (Wave, Orange Money, CinetPay, PayDunya, Stripe Connect…) **après** vérification de leurs conditions ; décider si un séquestre est envisageable juridiquement. Tant que non tranché : aucun paiement (D-015).
 4. **Hébergement et fournisseurs** : hébergeur de l'application et de PostgreSQL ; e-mail transactionnel ; fournisseur SMS/OTP. (Création de comptes = action humaine.)
@@ -11,7 +11,7 @@
 
 ## P1 — lot 2 « confiance et hygiène » (je peux le faire sans intervention, sauf fournisseurs)
 
-1. Pousser (si P0.1 tranché) et **exécuter la CI** ; corriger ce qui diffère de Windows.
+1. ~~Première exécution de la CI~~ **verte le 2026-10-23** (Linux). Reste : passer les actions `checkout`/`setup-node` à une version Node 24 pour supprimer l'avertissement.
 2. Réinitialisation de mot de passe + vérification d'e-mail via une interface `MailAdapter` (adaptateur « outbox » local **clairement non opérationnel**).
 3. Limitation de débit (connexion, inscription, code de remise) par IP et par compte.
 4. Table `disputes` + messages + preuves ; interface opérateur de résolution (les statuts existent déjà).

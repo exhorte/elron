@@ -30,7 +30,7 @@ Format : **ID — décision** · statut (retenue / hypothèse / à valider humai
 | ID | Décision |
 |---|---|
 | D-019 | **Aucun code copié** depuis les 7 dépôts de référence. Idées retenues : événements immuables + table de transitions (SwiftShip, MIT), journal d'événements (Warp Tools, MIT), suivi public sans compte (Peek, Apache-2.0). `courier-logistics-backend` n'a **aucune licence** : lecture seule. OpenRouteService (**GPL-3.0**) : exclu du MVP. |
-| D-020 | **Git** : dépôt local initialisé (`main`), remote `origin` ajouté vers `https://github.com/exhorte/elron.git` (vide, **public**). **Aucun push effectué.** Le PDF de recherche est exclu du suivi Git (numéros de téléphone de tiers) tant que le porteur n'a pas décidé. |
+| D-020 | **Git** : dépôt local initialisé (`main`), remote `origin` ajouté vers `https://github.com/exhorte/elron.git` (vide, **public**). **Poussé le 2026-10-23** sur demande explicite du porteur. Le PDF de recherche reste exclu du suivi Git (numéros de téléphone de tiers). **Auteur unique** : les 4 commits locaux, qui portaient une ligne `Co-Authored-By` ajoutée par l'assistant, ont été réécrits avant le push (aucun co-auteur sur le distant). Règle permanente dans `CLAUDE.md`. |
 
 ## Conflits entre documents
 
