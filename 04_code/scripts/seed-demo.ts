@@ -34,7 +34,15 @@ async function resetDemo() {
     // Opération de maintenance volontaire, limitée aux lignes démo : les journaux sont normalement en ajout seul.
     await tx.execute(sql`ALTER TABLE shipment_events DISABLE TRIGGER shipment_events_append_only`);
     await tx.execute(sql`ALTER TABLE audit_logs DISABLE TRIGGER audit_logs_append_only`);
+    await tx.execute(sql`ALTER TABLE dispute_messages DISABLE TRIGGER dispute_messages_append_only`);
+    await tx.execute(sql`ALTER TABLE reviews DISABLE TRIGGER reviews_append_only`);
+    await tx.execute(sql`ALTER TABLE proof_files DISABLE TRIGGER proof_files_append_only`);
     if (demoShipments.length) {
+      const demoDisputes = (await tx.select({ id: schema.disputes.id }).from(schema.disputes).where(inArray(schema.disputes.shipmentId, demoShipments))).map((x) => x.id);
+      if (demoDisputes.length) await tx.delete(schema.disputeMessages).where(inArray(schema.disputeMessages.disputeId, demoDisputes));
+      await tx.delete(schema.disputes).where(inArray(schema.disputes.shipmentId, demoShipments));
+      await tx.delete(schema.reviews).where(inArray(schema.reviews.shipmentId, demoShipments));
+      await tx.delete(schema.proofFiles).where(inArray(schema.proofFiles.shipmentId, demoShipments));
       await tx.delete(schema.shipmentEvents).where(inArray(schema.shipmentEvents.shipmentId, demoShipments));
       await tx.delete(schema.shipmentItems).where(inArray(schema.shipmentItems.shipmentId, demoShipments));
       await tx.delete(schema.shipments).where(inArray(schema.shipments.id, demoShipments));
@@ -49,6 +57,9 @@ async function resetDemo() {
     await tx.delete(schema.users).where(inArray(schema.users.id, demoUsers));
     await tx.execute(sql`ALTER TABLE shipment_events ENABLE TRIGGER shipment_events_append_only`);
     await tx.execute(sql`ALTER TABLE audit_logs ENABLE TRIGGER audit_logs_append_only`);
+    await tx.execute(sql`ALTER TABLE dispute_messages ENABLE TRIGGER dispute_messages_append_only`);
+    await tx.execute(sql`ALTER TABLE reviews ENABLE TRIGGER reviews_append_only`);
+    await tx.execute(sql`ALTER TABLE proof_files ENABLE TRIGGER proof_files_append_only`);
   });
   console.log("Données de démonstration supprimées.");
 }

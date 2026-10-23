@@ -96,6 +96,29 @@ export const ROLE_LABELS: Record<string, string> = {
   system: "Système",
 };
 
+export const DISPUTE_REASON_LABELS: Record<string, string> = {
+  not_received: "Colis non reçu",
+  damaged_goods: "Colis endommagé",
+  content_mismatch: "Contenu non conforme à la description",
+  delay: "Retard important",
+  lost: "Colis perdu",
+  conduct: "Comportement de l'autre partie",
+  other: "Autre motif",
+};
+
+export const DISPUTE_OUTCOME_LABELS: Record<string, string> = {
+  resume: "Litige rejeté — le colis reprend son cours",
+  delivered: "Considérer le colis comme remis",
+  returned: "Colis retourné à l'expéditeur",
+  lost: "Colis perdu",
+  damaged: "Colis endommagé",
+  cancelled: "Annuler le colis (libère la capacité)",
+};
+
+export function formatRating(rating: { average: number | null; count: number }): string {
+  return rating.count === 0 || rating.average === null ? "Pas encore d'avis" : `★ ${rating.average.toFixed(1).replace(".", ",")}/5 (${rating.count} avis)`;
+}
+
 export const ERROR_MESSAGES: Record<string, string> = {
   unauthorized: "Connectez-vous pour continuer.",
   email_taken: "Cette adresse e-mail est déjà utilisée.",
@@ -115,4 +138,17 @@ export const ERROR_MESSAGES: Record<string, string> = {
   note_required: "Une justification est requise.",
   invalid_transition: "Ce changement de statut n'est pas possible.",
   transition_forbidden: "Vous ne pouvez pas effectuer ce changement de statut.",
+  rate_limited: "Trop de requêtes. Réessayez dans quelques instants.",
+  invalid_reset_token: "Lien invalide ou expiré : refaites une demande de réinitialisation.",
+  file_too_large: "Fichier trop volumineux (5 Mo maximum).",
+  file_empty: "Le fichier est vide.",
+  unsupported_file_type: "Type de fichier non accepté : JPEG, PNG, WEBP ou PDF uniquement.",
+  proof_limit_reached: "Nombre maximal de fichiers atteint pour ce colis.",
+  proof_not_found: "Une des preuves citées est introuvable pour ce colis.",
+  already_reviewed: "Vous avez déjà déposé un avis pour ce colis.",
+  review_not_available: "Un avis se dépose une fois la remise confirmée.",
+  review_window_closed: "Le délai pour déposer un avis est dépassé.",
+  dispute_closed: "Ce litige est clos.",
+  party_cannot_resolve: "Une partie au colis ne peut pas résoudre son propre litige.",
+  dispute_open: "Un litige est ouvert : seule sa résolution par un opérateur peut changer le statut.",
 };

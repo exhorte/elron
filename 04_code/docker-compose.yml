@@ -5,6 +5,9 @@ name: alx
 services:
   db:
     image: postgres:16-alpine
+    # Développement et tests UNIQUEMENT : sans fsync, les TRUNCATE de la suite de tests sont ~3× plus rapides.
+    # Une panne de courant peut corrompre cette base locale (jetable) ; ne jamais reprendre ces options en production.
+    command: ["postgres", "-c", "fsync=off", "-c", "synchronous_commit=off", "-c", "full_page_writes=off"]
     environment:
       POSTGRES_USER: alx
       POSTGRES_PASSWORD: alx

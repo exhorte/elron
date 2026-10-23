@@ -5,6 +5,7 @@ import { useState } from "react";
 import { NOTE_REQUIRED_FOR, STATUS_LABELS_FR, type ShipmentStatus } from "@/domain/workflow";
 import { formatDateTime } from "@/lib/format";
 import { api, describeError } from "./api-client";
+import { ProofUploader, type UploadedProof } from "./proof-uploader";
 import { Card, Field, Notice, btnDanger, btnPrimary, btnSecondary, inputCls } from "./ui";
 
 const ACTION_LABELS: Partial<Record<ShipmentStatus, string>> = {
@@ -45,7 +46,7 @@ export function ShipmentActions({ shipmentId, status, viewerRole, allowedTransit
   const [pending, setPending] = useState(false);
   const [target, setTarget] = useState<ShipmentStatus | null>(null);
   const [note, setNote] = useState("");
-  const [proof, setProof] = useState("");
+  const [attached, setAttached] = useState<UploadedProof[]>([]);
   const [issuedCode, setIssuedCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [code, setCode] = useState("");
 
@@ -59,13 +60,13 @@ export function ShipmentActions({ shipmentId, status, viewerRole, allowedTransit
     const res = await api(`/api/v1/shipments/${shipmentId}/transitions`, "POST", {
       to,
       note: note.trim() || null,
-      proofs: proof.trim() ? [{ type: "photo", reference: proof.trim() }] : [],
+      proofs: attached.map((p) => ({ fileId: p.id })),
     });
     setPending(false);
     if (!res.ok) return setError(describeError(res.error));
     setTarget(null);
     setNote("");
-    setProof("");
+    setAttached([]);
     router.refresh();
   }
 
@@ -187,9 +188,22 @@ export function ShipmentActions({ shipmentId, status, viewerRole, allowedTransit
               <Field label={noteRequired ? "Justification (obligatoire)" : "Note (facultatif)"} htmlFor="note">
                 <textarea id="note" rows={2} maxLength={500} value={note} onChange={(e) => setNote(e.target.value)} className={inputCls} />
               </Field>
-              <Field label="Preuve : référence de photo ou de document (facultatif)" htmlFor="proof" hint="Le téléversement de fichiers n'est pas encore disponible : indiquez une référence.">
-                <input id="proof" maxLength={500} value={proof} onChange={(e) => setProof(e.target.value)} className={inputCls} />
-              </Field>
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Preuves jointes (facultatif)</p>
+                <ProofUploader shipmentId={shipmentId} defaultPurpose={target === "DAMAGED" ? "damage" : target === "HANDED_OVER" ? "handover" : "other"} onUploaded={(p) => setAttached((a) => [...a, p])} />
+                {attached.length > 0 ? (
+                  <ul className="space-y-1 text-sm">
+                    {attached.map((p) => (
+                      <li key={p.id} className="flex items-center justify-between gap-2 rounded-md bg-slate-100 px-2 py-1 dark:bg-slate-800">
+                        <span className="truncate">{p.purposeLabel} · {p.originalName}</span>
+                        <button type="button" className="text-xs underline" onClick={() => setAttached((a) => a.filter((x) => x.id !== p.id))}>
+                          Retirer
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
               <div className="flex gap-2">
                 <button type="button" disabled={pending} className={btnPrimary} onClick={() => submitTransition(target)}>
                   Valider

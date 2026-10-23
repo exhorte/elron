@@ -44,6 +44,9 @@ export function getAppBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
 
 export const PASSWORD_RESET_TTL_MINUTES = 60;
 
+/** Délai pendant lequel un avis peut être déposé après la livraison confirmée. */
+export const REVIEW_WINDOW_DAYS = 30;
+
 export const SESSION_COOKIE = "alx_session";
 export const SESSION_TTL_DAYS = 14;
 export const LOGIN_MAX_FAILURES = 5;

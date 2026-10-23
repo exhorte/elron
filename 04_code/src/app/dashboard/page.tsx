@@ -11,6 +11,7 @@ import {
   REQUEST_STATUS_LABELS,
   TRANSPORT_LABELS,
   formatDateTime,
+  formatRating,
 } from "@/lib/format";
 import { requireActorPage } from "@/lib/session";
 import { getTravelerProfile } from "@/server/admin";
@@ -67,7 +68,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <p className="font-medium">
-                    {b.counterpart.displayName} · {formatWeight(b.weightG)} · {categoryLabel(b.request.category)}
+                    {b.counterpart.displayName} ({formatRating(b.counterpart.rating)}) · {formatWeight(b.weightG)} · {categoryLabel(b.request.category)}
                   </p>
                   <p className="text-sm text-slate-600 dark:text-slate-400">{b.request.description}</p>
                   {b.message ? <p className="mt-1 text-sm italic">« {b.message} »</p> : null}

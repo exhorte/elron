@@ -7,6 +7,8 @@ import { formatWeight } from "@/domain/money";
 import { formatDateTime } from "@/lib/format";
 import { requireOperatorPage } from "@/lib/session";
 import { listAllShipments, listPendingIdentityReviews } from "@/server/admin";
+import { listOpenDisputes } from "@/server/disputes";
+import { DISPUTE_REASON_LABELS } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Administration" };
 export const dynamic = "force-dynamic";
@@ -16,7 +18,7 @@ const ID_KIND: Record<string, string> = { national_id: "Carte nationale d'identi
 export default async function AdminPage() {
   const actor = await requireOperatorPage("/admin");
   const db = getDb();
-  const [pending, shipments] = await Promise.all([listPendingIdentityReviews(db, actor), listAllShipments(db, actor, 50)]);
+  const [pending, shipments, openDisputes] = await Promise.all([listPendingIdentityReviews(db, actor), listAllShipments(db, actor, 50), listOpenDisputes(db, actor)]);
   return (
     <div className="space-y-6">
       <PageTitle title="Administration" subtitle="Interface minimale d'opérateur." />
@@ -24,6 +26,30 @@ export default async function AdminPage() {
         La vérification d&apos;identité se fait hors plateforme (aucune pièce n&apos;est stockée ici). Cette interface n&apos;enregistre que votre décision, avec votre nom et la date,
         dans le journal d&apos;audit.
       </Notice>
+
+      <section aria-labelledby="disp" className="space-y-3">
+        <h2 id="disp" className="text-lg font-semibold">
+          Litiges ouverts ({openDisputes.length})
+        </h2>
+        {openDisputes.length === 0 ? (
+          <Notice>Aucun litige ouvert.</Notice>
+        ) : (
+          openDisputes.map((d) => (
+            <Card key={d.id}>
+              <p className="font-medium">
+                <Link className="underline" href={`/shipments/${d.shipmentId}`}>
+                  {d.trackingCode}
+                </Link>{" "}
+                — {DISPUTE_REASON_LABELS[d.reasonCode] ?? d.reasonCode}
+              </p>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Ouvert le {formatDateTime(d.createdAt)} par {d.openerName} · {d.messages.length} message{d.messages.length > 1 ? "s" : ""}
+              </p>
+              <p className="mt-1 line-clamp-2 text-sm">{d.description}</p>
+            </Card>
+          ))
+        )}
+      </section>
 
       <section aria-labelledby="idr" className="space-y-3">
         <h2 id="idr" className="text-lg font-semibold">

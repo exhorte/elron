@@ -400,6 +400,136 @@ export const shipmentEvents = pgTable(
   (t) => [index("shipment_events_shipment_idx").on(t.shipmentId, t.id)],
 );
 
+/**
+ * Avis après livraison confirmée : une note de 1 à 5 par auteur et par colis, sur l'autre partie. Immuable
+ * (trigger) : on ne retouche pas un avis. Visible dès publication (pas d'avis croisés aveugles : limite connue).
+ */
+export const reviews = pgTable(
+  "reviews",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shipmentId: uuid("shipment_id")
+      .notNull()
+      .references(() => shipments.id),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id),
+    subjectUserId: uuid("subject_user_id")
+      .notNull()
+      .references(() => users.id),
+    /** Rôle de l'auteur sur ce colis : `sender` note le transporteur, `provider` note l'expéditeur. */
+    authorRole: text("author_role").notNull(),
+    rating: integer("rating").notNull(),
+    comment: text("comment"),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("reviews_one_per_author_per_shipment_key").on(t.shipmentId, t.authorUserId),
+    index("reviews_subject_idx").on(t.subjectUserId, t.createdAt),
+    check("reviews_rating_range", sql`${t.rating} BETWEEN 1 AND 5`),
+    check("reviews_author_role_known", sql`${t.authorRole} IN ('sender','provider')`),
+    check("reviews_not_self", sql`${t.authorUserId} <> ${t.subjectUserId}`),
+    check("reviews_comment_length", sql`${t.comment} IS NULL OR char_length(${t.comment}) <= 500`),
+  ],
+);
+
+export const disputeStatus = pgEnum("dispute_status", ["open", "resolved"]);
+
+/**
+ * Litiges. Invariant : un colis est `DISPUTED` si et seulement s'il a un litige ouvert (un seul à la fois,
+ * index unique partiel). Ouvert par une partie ou un opérateur ; résolu uniquement par un opérateur qui n'est
+ * pas partie au colis. `status_before` permet de reprendre le cours normal si le litige est rejeté.
+ */
+export const disputes = pgTable(
+  "disputes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shipmentId: uuid("shipment_id")
+      .notNull()
+      .references(() => shipments.id),
+    openedBy: uuid("opened_by")
+      .notNull()
+      .references(() => users.id),
+    openerRole: actorRole("opener_role").notNull(),
+    reasonCode: text("reason_code").notNull(),
+    description: text("description").notNull(),
+    status: disputeStatus("status").notNull().default("open"),
+    statusBefore: shipmentStatus("status_before").notNull(),
+    resolutionOutcome: text("resolution_outcome"),
+    resolutionNote: text("resolution_note"),
+    resolvedBy: uuid("resolved_by").references(() => users.id),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    uniqueIndex("disputes_one_open_per_shipment_key").on(t.shipmentId).where(sql`${t.status} = 'open'`),
+    index("disputes_shipment_idx").on(t.shipmentId),
+    index("disputes_status_idx").on(t.status, t.createdAt),
+    check("disputes_reason_known", sql`${t.reasonCode} IN ('not_received','damaged_goods','content_mismatch','delay','lost','conduct','other')`),
+    check(
+      "disputes_outcome_known",
+      sql`${t.resolutionOutcome} IS NULL OR ${t.resolutionOutcome} IN ('resume','delivered','returned','lost','damaged','cancelled')`,
+    ),
+    check(
+      "disputes_resolution_complete",
+      sql`(${t.status} = 'open' AND ${t.resolvedAt} IS NULL AND ${t.resolvedBy} IS NULL AND ${t.resolutionOutcome} IS NULL)
+          OR (${t.status} = 'resolved' AND ${t.resolvedAt} IS NOT NULL AND ${t.resolvedBy} IS NOT NULL AND ${t.resolutionOutcome} IS NOT NULL AND ${t.resolutionNote} IS NOT NULL)`,
+    ),
+  ],
+);
+
+/** Fil de discussion d'un litige : append-only (trigger). Les pièces citées sont des instantanés de preuves téléversées. */
+export const disputeMessages = pgTable(
+  "dispute_messages",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    disputeId: uuid("dispute_id")
+      .notNull()
+      .references(() => disputes.id),
+    authorUserId: uuid("author_user_id")
+      .notNull()
+      .references(() => users.id),
+    authorRole: actorRole("author_role").notNull(),
+    body: text("body").notNull(),
+    proofs: jsonb("proofs").notNull().default(sql`'[]'::jsonb`),
+    kind: text("kind").notNull().default("message"), // message | opening | resolution
+    createdAt: createdAt(),
+  },
+  (t) => [index("dispute_messages_dispute_idx").on(t.disputeId, t.id), check("dispute_messages_kind_known", sql`${t.kind} IN ('message','opening','resolution')`)],
+);
+
+/**
+ * Preuves téléversées (photos/PDF). Fichier sur stockage privé ; ici métadonnées + empreinte SHA-256 pour
+ * prouver l'intégrité. Append-only (trigger) : une preuve ne se modifie ni ne se supprime.
+ */
+export const proofFiles = pgTable(
+  "proof_files",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    shipmentId: uuid("shipment_id")
+      .notNull()
+      .references(() => shipments.id),
+    uploadedBy: uuid("uploaded_by")
+      .notNull()
+      .references(() => users.id),
+    uploaderRole: actorRole("uploader_role").notNull(),
+    storageKey: text("storage_key").notNull(),
+    originalName: text("original_name").notNull(),
+    contentType: text("content_type").notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: text("sha256").notNull(),
+    purpose: text("purpose").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    uniqueIndex("proof_files_storage_key_key").on(t.storageKey),
+    index("proof_files_shipment_idx").on(t.shipmentId, t.createdAt),
+    check("proof_files_size_positive", sql`${t.sizeBytes} > 0`),
+    check("proof_files_content_type_allowed", sql`${t.contentType} IN ('image/jpeg','image/png','image/webp','application/pdf')`),
+  ],
+);
+
 /** Journal d'audit : append-only. Ne jamais y écrire de mot de passe, secret ni code de remise. */
 export const auditLogs = pgTable(
   "audit_logs",

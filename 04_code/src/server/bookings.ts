@@ -8,6 +8,7 @@ import { generateTrackingCode } from "@/domain/ids";
 import type { Actor } from "./actor";
 import { audit } from "./audit";
 import { conflict, forbidden, invalid, notFound } from "./errors";
+import { ratingsFor } from "./reviews";
 import { toMatchOffer, toMatchRequest } from "./search";
 import type { BookingCreateInput } from "./validation";
 
@@ -38,7 +39,7 @@ export interface BookingView {
   decidedAt: Date | null;
   /** Résumé de la demande (sans coordonnées du destinataire tant que la réservation n'est pas acceptée). */
   request: { category: string; description: string; weightG: number; isDemo: boolean };
-  counterpart: { displayName: string };
+  counterpart: { displayName: string; rating: { average: number | null; count: number } };
   shipmentId: string | null;
 }
 
@@ -49,6 +50,9 @@ async function loadBookingView(db: DbOrTx, row: BookingRow, viewerIsProvider: bo
     .from(users)
     .where(eq(users.id, viewerIsProvider ? row.senderUserId : row.providerUserId));
   const [ship] = await db.select({ id: shipments.id }).from(shipments).where(eq(shipments.bookingId, row.id));
+  const otherId = viewerIsProvider ? row.senderUserId : row.providerUserId;
+  // la contrepartie d'un transporteur est un expéditeur, et inversement
+  const otherRating = (await ratingsFor(db, [otherId], viewerIsProvider ? "sender" : "provider")).get(otherId);
   return {
     id: row.id,
     status: row.status,
@@ -65,7 +69,7 @@ async function loadBookingView(db: DbOrTx, row: BookingRow, viewerIsProvider: bo
     createdAt: row.createdAt,
     decidedAt: row.decidedAt,
     request: { category: req!.category, description: req!.description, weightG: req!.weightG, isDemo: req!.isDemo },
-    counterpart: { displayName: other?.displayName ?? "—" },
+    counterpart: { displayName: other?.displayName ?? "—", rating: { average: otherRating?.average ?? null, count: otherRating?.count ?? 0 } },
     shipmentId: ship?.id ?? null,
   };
 }

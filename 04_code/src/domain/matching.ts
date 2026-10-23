@@ -58,6 +58,8 @@ export interface ProviderStats {
   completed: number;
   /** Colis perdus, endommagés ou en litige. */
   incidents: number;
+  /** Avis reçus en tant que transporteur (somme des notes 1–5 et nombre). Absent = aucun avis. */
+  ratings?: { count: number; sum: number };
 }
 
 export interface MatchOffer {
@@ -191,10 +193,18 @@ export function rankOffers(
     const daysApart = Math.abs(offer.departureAt.getTime() - reference.getTime()) / DAY_MS;
     const dateProximity = clamp01(1 - daysApart / config.dateProximityHorizonDays);
 
-    // fiabilité : lissage de Laplace (a priori neutre 0,5 sans historique)
+    // fiabilité : taux de livraisons réussies (lissage de Laplace, a priori 0,5) mélangé aux avis (moyenne
+    // bayésienne tirée vers 3/5 quand il y en a peu). Sans avis : taux de livraisons seul.
     const { completed, incidents } = offer.stats;
-    const reliability = (completed + 1) / (completed + incidents + 2);
-    if (completed + incidents === 0) flags.push("no_history");
+    const ratingCount = offer.stats.ratings?.count ?? 0;
+    const deliveryRate = (completed + 1) / (completed + incidents + 2);
+    let reliability = deliveryRate;
+    if (ratingCount > 0) {
+      const mean = (offer.stats.ratings!.sum + 3 * config.ratingPriorWeight) / (ratingCount + config.ratingPriorWeight);
+      const ratingScore = clamp01((mean - 1) / 4);
+      reliability = (1 - config.reliabilityRatingShare) * deliveryRate + config.reliabilityRatingShare * ratingScore;
+    }
+    if (completed + incidents + ratingCount === 0) flags.push("no_history");
     if (!offer.identityVerified) flags.push("identity_unverified");
 
     // délai : par rapport à l'échéance si connue, sinon relatif à l'offre la plus rapide ; inconnu = neutre

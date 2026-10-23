@@ -26,6 +26,8 @@ export interface HandlerContext<P> {
   body: <T>(schema: ZodType<T>) => Promise<T>;
   /** Valide les paramètres de requête. */
   query: <T>(schema: ZodType<T>) => T;
+  /** Lit un corps multipart avec un plafond d'octets (413 au-delà, sans tout charger en mémoire). */
+  formData: (maxBytes: number) => Promise<FormData>;
 }
 
 export class HttpResult {
@@ -103,6 +105,39 @@ async function readJsonBody(req: Request): Promise<unknown> {
   }
 }
 
+/**
+ * Lit le corps en flux et s'arrête dès que `maxBytes` est dépassé : un client malveillant ne peut pas faire
+ * charger un corps géant en mémoire (en-tête Content-Length absent ou mensonger compris).
+ */
+async function readMultipart(req: Request, maxBytes: number): Promise<FormData> {
+  const type = req.headers.get("content-type") ?? "";
+  if (!type.toLowerCase().startsWith("multipart/form-data")) {
+    throw new AppError(415, "unsupported_media_type", "Content-Type multipart/form-data requis");
+  }
+  const declared = Number(req.headers.get("content-length"));
+  const tooLarge = () => new AppError(413, "payload_too_large", "Corps de requête trop volumineux");
+  if (Number.isFinite(declared) && declared > maxBytes) throw tooLarge();
+  if (!req.body) throw new AppError(400, "empty_body", "Corps de requête vide");
+  const reader = req.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel().catch(() => undefined);
+      throw tooLarge();
+    }
+    chunks.push(value);
+  }
+  try {
+    return await new Response(Buffer.concat(chunks), { headers: { "content-type": type } }).formData();
+  } catch {
+    throw new AppError(400, "invalid_multipart", "Corps multipart invalide");
+  }
+}
+
 export function errorResponse(err: unknown): Response {
   if (err instanceof ZodError) {
     const issues = err.issues.map((i) => ({ path: i.path.join("."), message: i.message }));
@@ -151,7 +186,9 @@ export function route<P = Record<string, never>>(
         ip: clientIp(req),
         body: async (schema) => schema.parse(await readJsonBody(req)),
         query: (schema) => schema.parse(Object.fromEntries(new URL(req.url).searchParams.entries())),
+        formData: (maxBytes) => readMultipart(req, maxBytes),
       });
+      if (result instanceof Response) return result; // réponse brute (téléchargement de fichier)
       if (result instanceof HttpResult) return json({ data: result.data }, result.status, result.headers);
       return json({ data: result ?? null }, 200);
     } catch (err) {

@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { z } from "zod";
+import { DisputeSection } from "@/components/dispute-section";
+import { ProofUploader } from "@/components/proof-uploader";
+import { ReviewSection } from "@/components/review-section";
 import { ShipmentActions } from "@/components/shipment-actions";
 import { Badge, Card, DemoBadge, Notice, PageTitle } from "@/components/ui";
 import { categoryLabel } from "@/config/goods-policy";
@@ -8,6 +12,9 @@ import { getDb } from "@/db/client";
 import { formatMoney, formatWeight } from "@/domain/money";
 import { IDENTITY_LABELS, ROLE_LABELS, formatDateTime } from "@/lib/format";
 import { requireActorPage } from "@/lib/session";
+import { listShipmentDisputes } from "@/server/disputes";
+import { listProofs } from "@/server/proofs";
+import { getShipmentReviews } from "@/server/reviews";
 import { getShipmentView } from "@/server/shipments";
 
 export const metadata: Metadata = { title: "Détail du colis" };
@@ -30,6 +37,8 @@ export default async function ShipmentPage({ params }: { params: Promise<{ id: s
   const shipment = await getShipmentView(getDb(), actor, id).catch(() => null);
   if (!shipment) notFound();
   const identity = IDENTITY_LABELS[shipment.provider.identityStatus ?? "not_provided"]!;
+  const [proofs, disputes, reviews] = await Promise.all([listProofs(getDb(), actor, id), listShipmentDisputes(getDb(), actor, id), getShipmentReviews(getDb(), actor, id)]);
+  const counterpart = shipment.viewerRole === "sender" ? shipment.provider : shipment.sender;
 
   return (
     <div className="space-y-5">
@@ -56,12 +65,52 @@ export default async function ShipmentPage({ params }: { params: Promise<{ id: s
                   {e.note ? <p className="mt-1 text-sm">{e.note}</p> : null}
                   {Array.isArray(e.proofs) && e.proofs.length > 0 ? (
                     <p className="mt-1 text-xs text-slate-500">
-                      Preuves : {(e.proofs as Array<{ type: string; reference: string }>).map((p) => `${p.type} (${p.reference})`).join(", ")}
+                      Preuves :{" "}
+                      {(e.proofs as Array<{ fileId: string; contentType: string; sha256: string }>).map((p, i) => (
+                        <span key={p.fileId}>
+                          {i > 0 ? ", " : ""}
+                          <a className="underline" href={`/api/v1/proofs/${p.fileId}`} target="_blank" rel="noreferrer">
+                            {p.contentType === "application/pdf" ? "PDF" : "photo"} (empreinte {p.sha256.slice(0, 8)}…)
+                          </a>
+                        </span>
+                      ))}
                     </p>
                   ) : null}
                 </li>
               ))}
             </ol>
+          </Card>
+
+          <Card>
+            <h2 className="mb-3 font-semibold">Preuves ({proofs.length})</h2>
+            {proofs.length === 0 ? (
+              <p className="text-sm text-slate-600 dark:text-slate-400">Aucune preuve téléversée. Photographiez le colis à la remise et à la réception : cela protège les deux parties.</p>
+            ) : (
+              <ul className="grid gap-3 sm:grid-cols-2">
+                {proofs.map((p) => (
+                  <li key={p.id} className="rounded-lg border border-slate-200 p-2 text-sm dark:border-slate-800">
+                    {p.contentType.startsWith("image/") ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={`/api/v1/proofs/${p.id}`} alt={`${p.purposeLabel} — ${p.originalName}`} loading="lazy" className="mb-2 h-36 w-full rounded object-cover" />
+                    ) : (
+                      <a className="mb-2 block underline" href={`/api/v1/proofs/${p.id}`}>
+                        Télécharger le PDF
+                      </a>
+                    )}
+                    <p className="font-medium">{p.purposeLabel}</p>
+                    <p className="text-xs text-slate-500">
+                      {p.uploaderName} ({ROLE_LABELS[p.uploaderRole]}) · {formatDateTime(p.createdAt)} · {Math.ceil(p.sizeBytes / 1024)} Ko
+                    </p>
+                    <p className="truncate font-mono text-[11px] text-slate-400" title={p.sha256}>
+                      SHA-256 {p.sha256.slice(0, 16)}…
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div className="mt-4 border-t border-slate-200 pt-3 dark:border-slate-800">
+              <ProofUploader shipmentId={shipment.id} />
+            </div>
           </Card>
 
           <ShipmentActions
@@ -71,6 +120,12 @@ export default async function ShipmentPage({ params }: { params: Promise<{ id: s
             allowedTransitions={shipment.allowedTransitions}
             deliveryCode={{ ...shipment.deliveryCode, expiresAt: shipment.deliveryCode.expiresAt?.toISOString() ?? null }}
           />
+
+          <DisputeSection shipment={shipment} disputes={disputes} />
+
+          {shipment.viewerRole !== "operator" ? (
+            <ReviewSection status={shipment.status} reviews={reviews} counterpartName={counterpart.displayName} shipmentId={shipment.id} />
+          ) : null}
         </div>
 
         <aside className="space-y-4">
@@ -109,11 +164,19 @@ export default async function ShipmentPage({ params }: { params: Promise<{ id: s
             <dl className="space-y-1 text-sm">
               <div>
                 <dt className="inline text-slate-500">Expéditeur : </dt>
-                <dd className="inline">{shipment.sender.displayName}</dd>
+                <dd className="inline">
+                  <Link className="underline" href={`/users/${shipment.sender.id}`}>
+                    {shipment.sender.displayName}
+                  </Link>
+                </dd>
               </div>
               <div>
                 <dt className="inline text-slate-500">Transporteur : </dt>
-                <dd className="inline">{shipment.provider.displayName}</dd>
+                <dd className="inline">
+                  <Link className="underline" href={`/users/${shipment.provider.id}`}>
+                    {shipment.provider.displayName}
+                  </Link>
+                </dd>
               </div>
               <div>
                 <Badge tone={identity.tone}>{identity.label}</Badge>

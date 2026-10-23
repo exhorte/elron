@@ -23,7 +23,14 @@ export default function AboutPage() {
           <li>
             <strong>Pas de vérification automatique de pièce d&apos;identité</strong> : un profil « déclaré » n&apos;est pas « vérifié ». Seul un opérateur peut ajouter le badge, et aucune pièce n&apos;est stockée.
           </li>
-          <li>Pas de vérification du numéro de téléphone, pas de notation, pas de litiges outillés, pas d&apos;application mobile native, pas de points relais.</li>
+          <li>
+            Pas de vérification du numéro de téléphone ni de l&apos;adresse e-mail, pas d&apos;application mobile native, pas de points relais, pas de notifications. L&apos;envoi d&apos;e-mails (réinitialisation du mot de passe) n&apos;est branché à aucun
+            fournisseur sur cette version.
+          </li>
+          <li>
+            Les <strong>litiges</strong> sont tranchés par un opérateur qui n&apos;agit que sur le statut du colis : aucun remboursement ni indemnisation n&apos;existe (pas de paiement). Les <strong>avis</strong> sont publics dès leur dépôt,
+            non modifiables et non vérifiés. Les <strong>preuves téléversées</strong> (photos, PDF) ne sont pas analysées par un antivirus et peuvent contenir des métadonnées (lieu, date).
+          </li>
           <li>La plateforme ne garantit pas la livraison et n&apos;offre aucune assurance.</li>
         </ul>
       </Card>

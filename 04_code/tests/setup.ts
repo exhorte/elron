@@ -1,3 +1,5 @@
+import os from "node:os";
+import path from "node:path";
 import { afterAll } from "vitest";
 
 // Doit s'exécuter avant tout import de `@/db/client` : les tests n'utilisent JAMAIS la base de développement.
@@ -7,6 +9,7 @@ process.env.PLATFORM_FEE_BPS = "0";
 delete process.env.ALX_SHOW_DEMO;
 delete process.env.ALX_MATCHING_WEIGHTS;
 delete process.env.TRUSTED_PROXY_HOPS;
+process.env.UPLOAD_DIR = path.join(os.tmpdir(), "alx-test-uploads"); // nettoyé par le teardown de global-setup
 
 afterAll(async () => {
   const { closeDb } = await import("../src/db/client");

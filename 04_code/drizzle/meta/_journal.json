@@ -29,6 +29,27 @@
       "when": 1792752327890,
       "tag": "0003_password_reset",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792752777246,
+      "tag": "0004_proof_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792753089268,
+      "tag": "0005_disputes",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792753358319,
+      "tag": "0006_reviews",
+      "breakpoints": true
     }
   ]
 }

@@ -1,3 +1,5 @@
+import { rm as removePath } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
@@ -39,4 +41,9 @@ export default async function setup() {
   } finally {
     await pool.end();
   }
+}
+
+/** Efface le dossier temporaire des fichiers téléversés pendant les tests (nom fixe, dans le dossier temporaire du système). */
+export async function teardown() {
+  await removePath(path.join(os.tmpdir(), "alx-test-uploads"), { recursive: true, force: true });
 }

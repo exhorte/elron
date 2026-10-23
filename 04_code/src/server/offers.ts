@@ -6,6 +6,7 @@ import type { Actor } from "./actor";
 import { audit } from "./audit";
 import { conflict, forbidden, invalid, notFound } from "./errors";
 import { cityNames, requireEnabledRoute } from "./geo";
+import { ratingsFor } from "./reviews";
 import type { OfferCreateInput } from "./validation";
 
 const { capacityOffers, travelerProfiles, users, bookings, routes } = schema;
@@ -17,7 +18,7 @@ export interface OfferView {
   routeId: string;
   origin: { id: string; name: string };
   destination: { id: string; name: string };
-  provider: { id: string; displayName: string; identityStatus: string | null };
+  provider: { id: string; displayName: string; identityStatus: string | null; rating: { average: number | null; count: number } };
   transportMode: OfferRow["transportMode"];
   departureAt: Date;
   arrivalEstimatedAt: Date | null;
@@ -44,6 +45,7 @@ export async function toOfferViews(
   const names = await cityNames(db);
   const routeRows = await db.select().from(routes);
   const routeById = new Map(routeRows.map((r) => [r.id, r]));
+  const ratings = await ratingsFor(db, rows.map((r) => r.offer.providerUserId), "provider");
   return rows.map(({ offer, providerName, identityStatus }) => {
     const route = routeById.get(offer.routeId)!;
     return {
@@ -51,7 +53,12 @@ export async function toOfferViews(
       routeId: offer.routeId,
       origin: { id: route.originCityId, name: names.get(route.originCityId)?.name ?? route.originCityId },
       destination: { id: route.destinationCityId, name: names.get(route.destinationCityId)?.name ?? route.destinationCityId },
-      provider: { id: offer.providerUserId, displayName: providerName, identityStatus },
+      provider: {
+        id: offer.providerUserId,
+        displayName: providerName,
+        identityStatus,
+        rating: { average: ratings.get(offer.providerUserId)?.average ?? null, count: ratings.get(offer.providerUserId)?.count ?? 0 },
+      },
       transportMode: offer.transportMode,
       departureAt: offer.departureAt,
       arrivalEstimatedAt: offer.arrivalEstimatedAt,

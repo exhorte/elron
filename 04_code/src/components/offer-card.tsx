@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { categoryLabel } from "@/config/goods-policy";
 import { formatMoney, formatWeight } from "@/domain/money";
-import { CRITERIA_LABELS, FLAG_LABELS, IDENTITY_LABELS, TRANSPORT_LABELS, formatDateTime } from "@/lib/format";
+import { CRITERIA_LABELS, FLAG_LABELS, IDENTITY_LABELS, TRANSPORT_LABELS, formatDateTime, formatRating } from "@/lib/format";
 import type { SearchResult } from "@/server/search";
 import { Badge, DemoBadge, btnPrimary } from "./ui";
 
@@ -24,7 +24,10 @@ export function OfferCard({ result, bookHref, weightG }: { result: SearchResult;
             {offer.origin.name} → {offer.destination.name}
           </h3>
           <p className="text-sm text-slate-600 dark:text-slate-400">
-            {offer.provider.displayName} · {TRANSPORT_LABELS[offer.transportMode] ?? offer.transportMode}
+            <Link className="underline" href={`/users/${offer.provider.id}`}>
+              {offer.provider.displayName}
+            </Link>{" "}
+            · {TRANSPORT_LABELS[offer.transportMode] ?? offer.transportMode} · {formatRating(offer.provider.rating)}
           </p>
         </div>
         <div className="text-right">

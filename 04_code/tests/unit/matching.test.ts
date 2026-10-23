@@ -135,6 +135,27 @@ describe("score transparent", () => {
     expect(outcome.matches.find((m) => m.offerId === "neuf")!.breakdown.reliability.value).toBe(0.5);
   });
 
+  it("mélange les avis au taux de livraisons dans la fiabilité, sans jamais exclure", () => {
+    const rated = (sum: number, count: number) => offer(`r${count}-${sum}`, { stats: { completed: 0, incidents: 0, ratings: { count, sum } } });
+    const reliability = (o: MatchOffer, config?: MatchingConfig) => rankOffers(request(), [o], NOW, config).matches[0]!.breakdown.reliability.value;
+
+    expect(reliability(offer("sans-avis"))).toBe(0.5);
+    // beaucoup de 5/5 → fiabilité élevée ; beaucoup de 1/5 → faible
+    expect(reliability(rated(100, 20))).toBeGreaterThan(0.65);
+    expect(reliability(rated(20, 20))).toBeLessThan(0.4);
+    // un seul 5/5 est tiré vers le neutre (moyenne bayésienne) : meilleur que rien, mais loin du maximum
+    const one = reliability(rated(5, 1));
+    expect(one).toBeGreaterThan(0.5);
+    expect(one).toBeLessThan(reliability(rated(100, 20)));
+    // une part d'avis nulle les ignore
+    const ignore: MatchingConfig = { ...DEFAULT_MATCHING_CONFIG, reliabilityRatingShare: 0 };
+    expect(reliability(rated(100, 20), ignore)).toBe(0.5);
+    // des avis sans livraison enlèvent le drapeau « aucun historique »
+    const flags = rankOffers(request(), [rated(5, 1)], NOW).matches[0]!.flags;
+    expect(flags).not.toContain("no_history");
+    expect(rankOffers(request(), [rated(2, 1)], NOW).matches).toHaveLength(1);
+  });
+
   it("signale l'identité non vérifiée sans l'utiliser comme filtre", () => {
     const outcome = rankOffers(request(), [offer("a", { identityVerified: false }), offer("b", { identityVerified: true })], NOW);
     expect(outcome.matches).toHaveLength(2);

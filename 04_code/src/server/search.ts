@@ -6,6 +6,7 @@ import { rankOffers, type MatchOffer, type MatchOutcome, type MatchRequest, type
 import type { CurrencyCode } from "@/domain/money";
 import type { Actor } from "./actor";
 import { requireEnabledRoute } from "./geo";
+import { ratingsFor } from "./reviews";
 import { toOfferViews, type OfferRow, type OfferView } from "./offers";
 import { getRequestForActor, type RequestRow } from "./requests";
 import type { SearchQuery } from "./validation";
@@ -68,14 +69,20 @@ export async function loadCandidates(db: Db, routeId: string, now: Date, demo: b
     .from(shipments)
     .where(inArray(shipments.providerUserId, providerIds))
     .groupBy(shipments.providerUserId);
-  const stats = new Map(statRows.map((s) => [s.providerUserId, { completed: s.completed, incidents: s.incidents }]));
+  const ratings = await ratingsFor(db, providerIds, "provider");
+  const stats = new Map(
+    statRows.map((s) => [s.providerUserId, { completed: s.completed, incidents: s.incidents }] as const),
+  );
 
   return rows.map((r) => ({
     offer: r.offer,
     providerName: r.providerName,
     providerActive: r.providerStatus === "active",
     identityStatus: r.identityStatus,
-    stats: stats.get(r.offer.providerUserId) ?? { completed: 0, incidents: 0 },
+    stats: {
+      ...(stats.get(r.offer.providerUserId) ?? { completed: 0, incidents: 0 }),
+      ratings: ratings.has(r.offer.providerUserId) ? { count: ratings.get(r.offer.providerUserId)!.count, sum: ratings.get(r.offer.providerUserId)!.sum } : undefined,
+    },
   }));
 }
 

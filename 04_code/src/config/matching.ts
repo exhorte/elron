@@ -16,13 +16,19 @@ export interface MatchingConfig {
   dateProximityHorizonDays: number;
   /** Marge de capacité (en multiple du besoin) à partir de laquelle le critère vaut 1. */
   headroomCapRatio: number;
+  /** Part des avis dans le critère de fiabilité (le reste vient du taux de livraisons réussies). Hypothèse non validée. */
+  reliabilityRatingShare: number;
+  /** Poids de l'a priori neutre (note 3/5) dans la moyenne bayésienne des avis : peu d'avis → proche du neutre. */
+  ratingPriorWeight: number;
 }
 
 export const DEFAULT_MATCHING_CONFIG: MatchingConfig = {
-  version: "2026-10-22-draft-1",
+  version: "2026-10-23-draft-2",
   weights: { price: 35, dateProximity: 20, reliability: 20, delay: 15, headroom: 10 },
   dateProximityHorizonDays: 14,
   headroomCapRatio: 1,
+  reliabilityRatingShare: 0.4,
+  ratingPriorWeight: 2,
 };
 
 const weightsSchema = z

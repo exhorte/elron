@@ -26,6 +26,21 @@ export async function api<T = unknown>(path: string, method: "GET" | "POST" | "P
   }
 }
 
+/** Envoi d'un fichier en multipart (le navigateur fixe lui-même le Content-Type et la frontière). */
+export async function uploadFile<T = unknown>(path: string, file: File, fields: Record<string, string> = {}): Promise<ApiResult<T>> {
+  try {
+    const body = new FormData();
+    body.append("file", file);
+    for (const [k, v] of Object.entries(fields)) body.append(k, v);
+    const res = await fetch(path, { method: "POST", body });
+    const json = (await res.json().catch(() => null)) as { data?: T; error?: ApiFailure } | null;
+    if (res.ok && json && "data" in json) return { ok: true, data: json.data as T };
+    return { ok: false, error: json?.error ?? { code: "network", message: "Réponse inattendue du serveur" } };
+  } catch {
+    return { ok: false, error: { code: "network", message: "Connexion impossible. Vérifiez votre réseau." } };
+  }
+}
+
 /** Message utilisateur pour une erreur d'API (détail des champs invalides inclus). */
 export function describeError(error: ApiFailure): string {
   if (error.code === "validation_error" && Array.isArray(error.details)) {
@@ -35,6 +50,10 @@ export function describeError(error: ApiFailure): string {
   }
   if (error.code === "offer_incompatible" && error.details && typeof error.details === "object" && "reasons" in error.details) {
     return `${ERROR_MESSAGES.offer_incompatible} (${(error.details as { reasons: string[] }).reasons.join(", ")})`;
+  }
+  if (error.code === "rate_limited" && error.details && typeof error.details === "object" && "retryAfterSeconds" in error.details) {
+    const s = (error.details as { retryAfterSeconds: number }).retryAfterSeconds;
+    return `Trop de requêtes. Réessayez dans ${s >= 90 ? `${Math.ceil(s / 60)} min` : `${s} s`}.`;
   }
   if (error.code === "delivery_code_invalid" && error.details && typeof error.details === "object" && "attemptsLeft" in error.details) {
     return `${ERROR_MESSAGES.delivery_code_invalid} Tentatives restantes : ${(error.details as { attemptsLeft: number }).attemptsLeft}.`;

@@ -27,3 +27,6 @@ Thumbs.db
 
 # configuration locale de l'outil de prévisualisation
 .claude/launch.json
+
+# fichiers téléversés en développement (preuves)
+04_code/.data/

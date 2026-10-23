@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { GOODS_CATEGORY_CODES } from "@/config/goods-policy";
+import { PROOF_PURPOSES } from "@/config/uploads";
+import { DISPUTE_OUTCOMES, DISPUTE_REASONS } from "@/domain/disputes";
 import { CURRENCY_CODES, type CurrencyCode } from "@/domain/money";
 import { SHIPMENT_STATUSES } from "@/domain/workflow";
 
@@ -122,8 +124,7 @@ export type BookingCreateInput = z.infer<typeof bookingCreateSchema>;
 export const reasonSchema = z.strictObject({ reason: longText(500).nullish() });
 
 const proofSchema = z.strictObject({
-  type: z.enum(["photo", "document", "other"]),
-  reference: z.string().trim().min(1).max(500), // clé de stockage ou URL ; aucun téléversement en MVP
+  fileId: z.uuid(), // fichier déjà téléversé via POST /shipments/{id}/proofs
   description: longText(200).nullish(),
 });
 
@@ -133,6 +134,33 @@ export const transitionSchema = z.strictObject({
   proofs: z.array(proofSchema).max(5).default([]),
 });
 export type TransitionInput = z.infer<typeof transitionSchema>;
+
+export const proofUploadFieldsSchema = z.strictObject({
+  purpose: z.enum(PROOF_PURPOSES).default("other"),
+});
+
+const proofRefs = z.array(proofSchema).max(5).default([]);
+
+export const openDisputeSchema = z.strictObject({
+  reasonCode: z.enum(DISPUTE_REASONS),
+  description: z.string().trim().min(10, "Décrivez le problème en au moins 10 caractères").max(2000),
+  proofs: proofRefs,
+});
+
+export const disputeMessageSchema = z.strictObject({
+  body: z.string().trim().min(1).max(2000),
+  proofs: proofRefs,
+});
+
+export const resolveDisputeSchema = z.strictObject({
+  outcome: z.enum(DISPUTE_OUTCOMES),
+  note: z.string().trim().min(3, "Motivez la décision").max(1000),
+});
+
+export const reviewSchema = z.strictObject({
+  rating: z.number().int().min(1).max(5),
+  comment: longText(500).nullish(),
+});
 
 export const confirmDeliverySchema = z.strictObject({ code: z.string().regex(/^\d{6}$/, "Code à 6 chiffres") });
 

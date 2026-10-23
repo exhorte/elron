@@ -1,15 +1,20 @@
 import { z, type ZodType } from "zod";
+import { PROOF_PURPOSES } from "@/config/uploads";
 import {
   bookingCreateSchema,
   confirmDeliverySchema,
+  disputeMessageSchema,
   forgotPasswordSchema,
   identityReviewSchema,
   loginSchema,
   offerCreateSchema,
+  openDisputeSchema,
   reasonSchema,
   registerSchema,
   requestCreateSchema,
+  resolveDisputeSchema,
   resetPasswordSchema,
+  reviewSchema,
   searchQuerySchema,
   transitionSchema,
   travelerProfileSchema,
@@ -34,6 +39,10 @@ export interface Operation {
   notes?: string;
   /** L'endpoint applique une politique de limitation de débit (réponse 429 + Retry-After). */
   rateLimited?: boolean;
+  /** Corps de requête OpenAPI écrit à la main (ex. multipart), quand un schéma zod JSON ne convient pas. */
+  rawRequestBody?: Record<string, unknown>;
+  /** Réponse binaire (téléchargement) plutôt que l'enveloppe JSON `{ data }`. */
+  binaryResponse?: boolean;
 }
 
 export const OPERATIONS: Operation[] = [
@@ -73,11 +82,46 @@ export const OPERATIONS: Operation[] = [
   { method: "post", path: "/api/v1/shipments/{id}/transitions", tag: "Colis", summary: "Changer le statut selon la table de transitions et le rôle ; DELIVERED exige le code", auth: "user", body: transitionSchema },
   { method: "post", path: "/api/v1/shipments/{id}/delivery-code", tag: "Colis", summary: "Expéditeur : générer/régénérer le code de remise (affiché une seule fois)", auth: "user" },
   { method: "post", path: "/api/v1/shipments/{id}/confirm-delivery", tag: "Colis", summary: "Transporteur : confirmer la remise avec le code du destinataire (5 tentatives, expiration)", auth: "user", body: confirmDeliverySchema, rateLimited: true },
+  { method: "get", path: "/api/v1/shipments/{id}/proofs", tag: "Preuves", summary: "Lister les preuves téléversées d'un colis (métadonnées et empreintes)", auth: "user" },
+  {
+    method: "post",
+    path: "/api/v1/shipments/{id}/proofs",
+    tag: "Preuves",
+    summary: "Téléverser une preuve (JPEG, PNG, WEBP ou PDF, 5 Mo max, 20 par colis). Le type est déduit des octets, pas de l'en-tête",
+    auth: "user",
+    status: 201,
+    rateLimited: true,
+    rawRequestBody: {
+      required: true,
+      content: {
+        "multipart/form-data": {
+          schema: {
+            type: "object",
+            required: ["file"],
+            properties: {
+              file: { type: "string", format: "binary" },
+              purpose: { type: "string", enum: [...PROOF_PURPOSES], default: "other" },
+            },
+            additionalProperties: false,
+          },
+        },
+      },
+    },
+  },
+  { method: "get", path: "/api/v1/proofs/{id}", tag: "Preuves", summary: "Télécharger une preuve (parties et opérateurs ; en-têtes nosniff + CSP sandbox, sans cache)", auth: "user", binaryResponse: true },
+  { method: "get", path: "/api/v1/shipments/{id}/disputes", tag: "Litiges", summary: "Litiges d'un colis, avec fil de messages (parties et opérateurs)", auth: "user" },
+  { method: "post", path: "/api/v1/shipments/{id}/disputes", tag: "Litiges", summary: "Ouvrir un litige : le colis passe à DISPUTED (invariant : DISPUTED ⇔ un litige ouvert)", auth: "user", body: openDisputeSchema, status: 201, rateLimited: true },
+  { method: "post", path: "/api/v1/disputes/{id}/messages", tag: "Litiges", summary: "Ajouter un message et des preuves à un litige ouvert", auth: "user", body: disputeMessageSchema, status: 201, rateLimited: true },
+  { method: "get", path: "/api/v1/shipments/{id}/reviews", tag: "Avis", summary: "Avis du colis : le mien, celui de l'autre partie, et si le dépôt est encore possible (30 jours après la remise)", auth: "user" },
+  { method: "post", path: "/api/v1/shipments/{id}/reviews", tag: "Avis", summary: "Noter l'autre partie (1 à 5) une fois la remise confirmée ; un avis par auteur et par colis, non modifiable", auth: "user", body: reviewSchema, status: 201, rateLimited: true },
+  { method: "get", path: "/api/v1/users/{id}/reputation", tag: "Avis", summary: "Réputation publique : moyennes, livraisons, derniers avis (sans coordonnées)", auth: "none" },
   { method: "get", path: "/api/v1/track/{code}", tag: "Colis", summary: "Suivi public par code (sans donnée personnelle)", auth: "none" },
 
   { method: "get", path: "/api/v1/admin/identity-reviews", tag: "Administration", summary: "Identités déclarées en attente de revue", auth: "operator" },
   { method: "post", path: "/api/v1/admin/users/{id}/identity-review", tag: "Administration", summary: "Décision d'opérateur sur une identité déclarée", auth: "operator", body: identityReviewSchema },
   { method: "post", path: "/api/v1/admin/users/{id}/status", tag: "Administration", summary: "Suspendre/réactiver un compte (administrateur)", auth: "admin", body: userStatusSchema },
+  { method: "get", path: "/api/v1/admin/disputes", tag: "Administration", summary: "Litiges ouverts (opérateur)", auth: "operator" },
+  { method: "post", path: "/api/v1/admin/disputes/{id}/resolve", tag: "Administration", summary: "Résoudre un litige (opérateur non partie) : reprise, remis, retourné, perdu, endommagé ou annulé", auth: "operator", body: resolveDisputeSchema },
   { method: "get", path: "/api/v1/admin/shipments", tag: "Administration", summary: "Tous les colis (opérateur)", auth: "operator" },
 ];
 
@@ -106,7 +150,7 @@ function errorResponses(op: Operation): Record<string, unknown> {
   if (op.auth === "operator" || op.auth === "admin" || (op.method !== "get" && op.auth === "user")) out["403"] = ref;
   if (op.path.includes("{")) out["404"] = ref;
   if (op.method !== "get") out["409"] = ref;
-  if (op.body || op.query || op.path.includes("{")) out["422"] = ref;
+  if (op.body || op.rawRequestBody || op.query || op.path.includes("{")) out["422"] = ref;
   if (op.rateLimited) out["429"] = ref;
   return out;
 }
@@ -133,9 +177,13 @@ export function buildOpenApi(): Record<string, unknown> {
       ...(op.auth === "none" ? { security: [] } : { security: [{ cookieAuth: [] }] }),
       "x-auth": op.auth,
       ...(parameters.length > 0 ? { parameters } : {}),
-      ...(op.body ? { requestBody: { required: true, content: { "application/json": { schema: jsonSchema(op.body) } } } } : {}),
+      ...(op.rawRequestBody
+        ? { requestBody: op.rawRequestBody }
+        : op.body
+          ? { requestBody: { required: true, content: { "application/json": { schema: jsonSchema(op.body) } } } }
+          : {}),
       responses: {
-        [String(op.status ?? 200)]: { description: "Succès ; corps `{ \"data\": … }`" },
+        [String(op.status ?? 200)]: { description: op.binaryResponse ? "Contenu du fichier (octets)" : "Succès ; corps `{ \"data\": … }`" },
         ...errorResponses(op),
       },
     };

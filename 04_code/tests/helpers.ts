@@ -125,6 +125,17 @@ export async function dbError(promise: Promise<unknown>): Promise<string> {
   return "no_error";
 }
 
+/** Faux JPEG valide pour la détection (signature FF D8 FF) ; `size` octets au total. */
+export function jpegBytes(size = 2048, fill = 0x41): Uint8Array {
+  const out = new Uint8Array(size).fill(fill);
+  out.set([0xff, 0xd8, 0xff, 0xe0], 0);
+  return out;
+}
+
+export function pdfBytes(): Uint8Array {
+  return new TextEncoder().encode("%PDF-1.7\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n");
+}
+
 /** Exécute une promesse qui doit échouer avec un AppError et renvoie son code. */
 export async function errorCode(promise: Promise<unknown>): Promise<string> {
   try {

@@ -31,7 +31,7 @@ Les offres démo n'apparaissent que dans une recherche `?demo=1` et ne se réser
 
 | Commande | Rôle |
 |---|---|
-| `npm test` | 242 tests (unitaires + PostgreSQL réel + API). Crée/migre `alx_test` automatiquement |
+| `npm test` | tests (unitaires + PostgreSQL réel + API). Crée/migre `alx_test` automatiquement |
 | `npm run test:unit` | tests purs, sans base |
 | `npm run lint` / `npm run typecheck` / `npm run build` | qualité |
 | `npm run db:generate` | génère une migration depuis `src/db/schema.ts` |
@@ -47,6 +47,10 @@ Les offres démo n'apparaissent que dans une recherche `?demo=1` et ne se réser
 | `PLATFORM_FEE_BPS` | `0` | commission en points de base ; 0 tant qu'aucun modèle économique n'est validé |
 | `ALX_SHOW_DEMO` | `false` | recherche démo par défaut |
 | `ALX_MATCHING_WEIGHTS` | (défaut) | JSON des pondérations du score (hypothèses non validées) |
+| `TRUSTED_PROXY_HOPS` | `0` | proxys de confiance devant l'application ; sans cela `X-Forwarded-For` est ignoré et la limitation de débit utilise un compteur commun. **À régler en production** |
+| `APP_BASE_URL` | `http://localhost:3000` | URL publique pour les e-mails ; obligatoire en production |
+| `MAIL_TRANSPORT` | `console` (dev) / `disabled` (prod) | **aucun fournisseur d'e-mail n'est intégré** ; `console` est refusé en production |
+| `STORAGE_DRIVER` / `UPLOAD_DIR` | `local` / `.data/uploads` | preuves téléversées ; `UPLOAD_DIR` obligatoire en production (volume persistant, hors dossier public) |
 
 Périmètre géographique : `src/config/cities.ts` (puis `npm run db:migrate`). Politique de marchandises : `src/config/goods-policy.ts`.
 
@@ -57,4 +61,4 @@ Périmètre géographique : `src/config/cities.ts` (puis `npm run db:migrate`). 
 
 ## Rôles et sécurité en bref
 
-Tout compte peut expédier ; un profil voyageur permet de publier des trajets. `operator` revoit les identités déclarées et voit tous les colis ; `admin` peut en plus suspendre un compte. Promouvoir un utilisateur se fait en base (aucune interface) : `update users set platform_role = 'operator' where email = '…'`.
+Tout compte peut expédier, noter, ouvrir un litige et téléverser des preuves sur ses colis ; un profil voyageur permet de publier des trajets. `operator` revoit les identités déclarées et voit tous les colis ; `admin` peut en plus suspendre un compte. Promouvoir un utilisateur se fait en base (aucune interface) : `update users set platform_role = 'operator' where email = '…'`.

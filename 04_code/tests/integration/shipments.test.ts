@@ -12,7 +12,8 @@ import {
   transitionShipment,
 } from "@/server/shipments";
 import type { TransitionInput } from "@/server/validation";
-import { DAY, db, dbError, errorCode, makeAcceptedShipment, makeUser, resetDb } from "../helpers";
+import { uploadProof } from "@/server/proofs";
+import { DAY, db, dbError, errorCode, jpegBytes, makeAcceptedShipment, makeUser, resetDb } from "../helpers";
 
 beforeEach(resetDb);
 
@@ -73,17 +74,18 @@ describe("cycle de vie nominal", () => {
     expect((await getShipmentView(db(), ctx.provider, ctx.shipmentId)).status).toBe("DELIVERED");
   });
 
-  it("enregistre les justifications et les preuves de référence", async () => {
+  it("enregistre les justifications et les preuves téléversées (détail dans proofs.test.ts)", async () => {
     const ctx = await makeAcceptedShipment();
+    const proof = await uploadProof(db(), ctx.provider, ctx.shipmentId, { bytes: jpegBytes(), originalName: "remise.jpg", purpose: "handover" });
     await transitionShipment(db(), ctx.provider, ctx.shipmentId, {
       to: "HANDED_OVER",
       note: "Colis pesé : 5,1 kg",
-      proofs: [{ type: "photo", reference: "proofs/handover-1.jpg", description: "Colis scellé" }],
+      proofs: [{ fileId: proof.id, description: "Colis scellé" }],
     });
     const view = await getShipmentView(db(), ctx.sender, ctx.shipmentId);
     const event = view.events.at(-1)!;
     expect(event.note).toBe("Colis pesé : 5,1 kg");
-    expect(event.proofs).toEqual([{ type: "photo", reference: "proofs/handover-1.jpg", description: "Colis scellé" }]);
+    expect(event.proofs).toMatchObject([{ fileId: proof.id, sha256: proof.sha256, description: "Colis scellé" }]);
   });
 });
 
@@ -129,7 +131,6 @@ describe("contrôle des transitions et des rôles", () => {
     await move(ctx, ctx.provider, "HANDED_OVER");
     expect(await errorCode(move(ctx, ctx.provider, "DAMAGED"))).toBe("note_required");
     expect(await errorCode(move(ctx, ctx.provider, "LOST", "   "))).toBe("note_required");
-    expect(await errorCode(move(ctx, ctx.sender, "DISPUTED"))).toBe("note_required");
     await move(ctx, ctx.provider, "DAMAGED", "Emballage déchiré dans le bus");
     expect((await getShipmentView(db(), ctx.sender, ctx.shipmentId)).status).toBe("DAMAGED");
   });
@@ -189,28 +190,12 @@ describe("annulation et litiges", () => {
     expect(offer!.reservedWeightG).toBe(0);
   });
 
-  it("litige : l'expéditeur conteste, seul l'opérateur résout", async () => {
-    const ctx = await makeAcceptedShipment();
-    const operator = await makeUser({ role: "operator" });
-    await toArrived(ctx);
-    await move(ctx, ctx.sender, "DISPUTED", "Le colis ne correspond pas à la description");
-    expect(await errorCode(move(ctx, ctx.provider, "RETURNED", "x"))).toBe("transition_forbidden");
-    expect(await errorCode(move(ctx, ctx.sender, "CANCELLED", "x"))).toBe("transition_forbidden");
-    await move(ctx, operator, "RETURNED", "Retour validé après médiation");
-    const view = await getShipmentView(db(), ctx.sender, ctx.shipmentId);
-    expect(view.status).toBe("RETURNED");
-    expect(view.allowedTransitions).toEqual([]);
-    expect(await errorCode(move(ctx, operator, "DELIVERED"))).toBe("invalid_transition");
-  });
-
-  it("un colis livré peut être contesté par l'expéditeur, pas par le transporteur", async () => {
+  it("les litiges ne passent plus par la transition générique (voir disputes.test.ts)", async () => {
     const ctx = await makeAcceptedShipment();
     await toArrived(ctx);
-    const { code } = await generateShipmentDeliveryCode(db(), ctx.sender, ctx.shipmentId);
-    await confirmDelivery(db(), ctx.provider, ctx.shipmentId, code);
-    expect(await errorCode(move(ctx, ctx.provider, "DISPUTED", "x"))).toBe("transition_forbidden");
-    await move(ctx, ctx.sender, "DISPUTED", "Contenu endommagé à la réception");
-    expect((await getShipmentView(db(), ctx.sender, ctx.shipmentId)).status).toBe("DISPUTED");
+    expect(await errorCode(move(ctx, ctx.sender, "DISPUTED", "Le colis ne correspond pas à la description"))).toBe("use_dispute_endpoint");
+    expect(await errorCode(move(ctx, ctx.provider, "DISPUTED", "x"))).toBe("use_dispute_endpoint");
+    expect((await getShipmentView(db(), ctx.sender, ctx.shipmentId)).status).toBe("ARRIVED");
   });
 });
 

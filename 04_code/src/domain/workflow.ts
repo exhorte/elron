@@ -81,12 +81,19 @@ export const TRANSITIONS: TransitionTable = {
     DISPUTED: PARTIES,
   },
   DISPUTED: {
-    // résolution : réservée à l'opérateur
+    // résolution : réservée à l'opérateur, et uniquement via `resolveDispute`
     DELIVERED: ["operator"],
     RETURNED: ["operator"],
     LOST: ["operator"],
     DAMAGED: ["operator"],
     CANCELLED: ["operator"],
+    // litige rejeté : le colis reprend l'état d'avant (le service impose que ce soit exactement celui-là)
+    ACCEPTED: ["operator"],
+    HANDED_OVER: ["operator"],
+    IN_TRANSIT: ["operator"],
+    ARRIVED: ["operator"],
+    OUT_FOR_DELIVERY: ["operator"],
+    DELIVERY_FAILED: ["operator"],
   },
   DELIVERED: {
     DISPUTED: ["sender", "operator"],

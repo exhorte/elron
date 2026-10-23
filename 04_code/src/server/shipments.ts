@@ -20,23 +20,16 @@ import {
   type ActorRole,
   type ShipmentStatus,
 } from "@/domain/workflow";
-import { isOperator, type Actor } from "./actor";
+import { resolveRole, type Actor } from "./actor";
 import { audit } from "./audit";
 import { AppError, conflict, forbidden, invalid, locked, notFound } from "./errors";
 import { cityNames } from "./geo";
+import { resolveProofRefs } from "./proofs";
 import type { TransitionInput } from "./validation";
 
-const { shipments, shipmentEvents, shipmentItems, shipmentRequests, capacityOffers, bookings, users, travelerProfiles, routes } = schema;
+const { shipments, shipmentEvents, shipmentItems, shipmentRequests, capacityOffers, bookings, users, travelerProfiles, routes, disputes } = schema;
 
 type ShipmentRow = typeof shipments.$inferSelect;
-
-/** Rôle de l'acteur sur ce colis : partie (expéditeur/prestataire) d'abord, sinon opérateur, sinon aucun accès. */
-export function resolveRole(actor: Actor, shipment: Pick<ShipmentRow, "senderUserId" | "providerUserId">): ActorRole | null {
-  if (actor.id === shipment.senderUserId) return "sender";
-  if (actor.id === shipment.providerUserId) return "provider";
-  if (isOperator(actor)) return "operator";
-  return null;
-}
 
 const CODE_ACTIVE_STATUSES: ReadonlySet<ShipmentStatus> = new Set<ShipmentStatus>([
   "ACCEPTED",
@@ -90,7 +83,12 @@ export interface ShipmentView {
   };
   price: { subtotalMinor: number; currency: CurrencyCode } | null;
   viewerRole: ActorRole;
+  /** Changements de statut possibles par la route générique (jamais DISPUTED ni DELIVERED-par-transporteur). */
   allowedTransitions: ShipmentStatus[];
+  /** Peut ouvrir un litige (workflow + pas de litige déjà ouvert). */
+  canOpenDispute: boolean;
+  /** Litige ouvert en cours, le cas échéant. */
+  openDispute: { id: string; reasonCode: string; openerRole: ActorRole; createdAt: Date } | null;
   deliveryCode: {
     generated: boolean;
     generation: number;
@@ -125,6 +123,7 @@ async function buildView(db: Db, shipment: ShipmentRow, role: ActorRole): Promis
     .leftJoin(travelerProfiles, eq(travelerProfiles.userId, users.id))
     .where(eq(users.id, shipment.providerUserId));
   const items = await db.select().from(shipmentItems).where(eq(shipmentItems.shipmentId, shipment.id));
+  const [openDispute] = await db.select().from(disputes).where(and(eq(disputes.shipmentId, shipment.id), eq(disputes.status, "open")));
   const eventRows = await db
     .select({ event: shipmentEvents, actorName: users.displayName })
     .from(shipmentEvents)
@@ -164,7 +163,10 @@ async function buildView(db: Db, shipment: ShipmentRow, role: ActorRole): Promis
     },
     price: booking ? { subtotalMinor: booking.subtotalMinor, currency: booking.currency as CurrencyCode } : null,
     viewerRole: role,
-    allowedTransitions: allowedTargets(status, role).filter((to) => !(to === "DELIVERED" && role === "provider")),
+    allowedTransitions:
+      status === "DISPUTED" ? [] : allowedTargets(status, role).filter((to) => to !== "DISPUTED" && !(to === "DELIVERED" && role === "provider")),
+    canOpenDispute: status !== "DISPUTED" && canTransition(status, "DISPUTED", role),
+    openDispute: openDispute ? { id: openDispute.id, reasonCode: openDispute.reasonCode, openerRole: openDispute.openerRole, createdAt: openDispute.createdAt } : null,
     deliveryCode: {
       generated: Boolean(shipment.deliveryCodeHash),
       generation: shipment.deliveryCodeGeneration,
@@ -262,64 +264,78 @@ export async function trackPublic(db: Db, trackingCode: string) {
 // ───────────────────────── Transitions
 
 /**
- * Applique une transition autorisée par la table du workflow. Le verrou sur la ligne du colis
- * sérialise les changements concurrents ; l'annulation libère la capacité (ordre des verrous :
- * demande → offre → réservation → colis).
+ * Verrouille un colis en vue d'une transition. Ordre global des verrous : demande → offre → réservation → colis ;
+ * les trois premiers ne sont pris que si la transition peut libérer de la capacité (annulation).
+ */
+export async function lockShipmentForTransition(tx: Tx, shipmentId: string, withCapacity: boolean): Promise<ShipmentRow> {
+  const [preview] = await tx.select().from(shipments).where(eq(shipments.id, shipmentId));
+  if (!preview) throw notFound("Colis");
+  if (withCapacity) {
+    await tx.select({ id: shipmentRequests.id }).from(shipmentRequests).where(eq(shipmentRequests.id, preview.requestId)).for("update");
+    await tx.select({ id: capacityOffers.id }).from(capacityOffers).where(eq(capacityOffers.id, preview.offerId)).for("update");
+    await tx.select({ id: bookings.id }).from(bookings).where(eq(bookings.id, preview.bookingId)).for("update");
+  }
+  const [shipment] = await tx.select().from(shipments).where(eq(shipments.id, shipmentId)).for("update");
+  if (!shipment) throw notFound("Colis");
+  return shipment;
+}
+
+export interface AppliedTransition {
+  to: ShipmentStatus;
+  role: ActorRole;
+  note: string | null;
+  proofs: unknown[];
+  context?: Record<string, unknown>;
+}
+
+/**
+ * Applique une transition sur un colis DÉJÀ verrouillé : table du workflow, rôle, justification, événement
+ * immuable, libération de capacité, audit. Point unique de changement de statut (hors code de remise).
+ */
+export async function applyLockedTransition(tx: Tx, shipment: ShipmentRow, actor: Actor, req: AppliedTransition, now: Date): Promise<void> {
+  const from = shipment.status;
+  const { to, role } = req;
+  if (!isKnownTransition(from, to)) throw conflict("invalid_transition", `Transition ${from} → ${to} impossible`, { from, to });
+  if (!canTransition(from, to, role)) throw forbidden("transition_forbidden", `Le rôle « ${role} » ne peut pas passer de ${from} à ${to}`);
+  if (to === "DELIVERED" && role === "provider") throw invalid("delivery_code_required", "La remise se confirme avec le code du destinataire");
+  if (NOTE_REQUIRED_FOR.has(to) && !req.note) throw invalid("note_required", "Une justification est requise pour ce changement de statut");
+
+  await tx.update(shipments).set({ status: to, statusChangedAt: now }).where(eq(shipments.id, shipment.id));
+  await tx.insert(shipmentEvents).values({
+    shipmentId: shipment.id,
+    fromStatus: from,
+    toStatus: to,
+    actorUserId: actor.id,
+    actorRole: role,
+    note: req.note,
+    proofs: req.proofs,
+    context: req.context ?? {},
+    occurredAt: now,
+  });
+  if (to === "CANCELLED") await releaseCapacity(tx, shipment);
+  if (role === "operator" || to === "CANCELLED" || to === "DAMAGED" || to === "LOST" || to === "DISPUTED") {
+    await audit(tx, { actorUserId: actor.id, action: "shipment.transition", entityType: "shipment", entityId: shipment.id, data: { from, to, role } });
+  }
+}
+
+/**
+ * Transition demandée par une partie ou un opérateur. L'ouverture d'un litige passe par `openDispute` et
+ * la sortie d'un litige par `resolveDispute` : invariant « DISPUTED ⇔ un litige ouvert ».
  */
 export async function transitionShipment(db: Db, actor: Actor, shipmentId: string, input: TransitionInput, now = new Date()) {
   const to = input.to;
+  if (to === "DISPUTED") throw invalid("use_dispute_endpoint", "Ouvrez un litige via POST /shipments/{id}/disputes");
   await db.transaction(async (tx) => {
     const [preview] = await tx.select().from(shipments).where(eq(shipments.id, shipmentId));
     if (!preview) throw notFound("Colis");
     const role = resolveRole(actor, preview);
     if (!role) throw notFound("Colis");
-
-    if (to === "CANCELLED") {
-      await tx.select({ id: shipmentRequests.id }).from(shipmentRequests).where(eq(shipmentRequests.id, preview.requestId)).for("update");
-      await tx.select({ id: capacityOffers.id }).from(capacityOffers).where(eq(capacityOffers.id, preview.offerId)).for("update");
-      await tx.select({ id: bookings.id }).from(bookings).where(eq(bookings.id, preview.bookingId)).for("update");
-    }
-    const [shipment] = await tx.select().from(shipments).where(eq(shipments.id, shipmentId)).for("update");
-    if (!shipment) throw notFound("Colis");
-    const from = shipment.status;
-
-    if (!isKnownTransition(from, to)) {
-      throw conflict("invalid_transition", `Transition ${from} → ${to} impossible`, { from, to });
-    }
-    if (!canTransition(from, to, role)) {
-      throw forbidden("transition_forbidden", `Le rôle « ${role} » ne peut pas passer de ${from} à ${to}`);
-    }
-    if (to === "DELIVERED" && role === "provider") {
-      throw invalid("delivery_code_required", "La remise se confirme avec le code du destinataire");
-    }
-    const note = input.note?.trim() || null;
-    if (NOTE_REQUIRED_FOR.has(to) && !note) throw invalid("note_required", "Une justification est requise pour ce changement de statut");
-
-    await tx.update(shipments).set({ status: to, statusChangedAt: now }).where(eq(shipments.id, shipmentId));
-    await tx.insert(shipmentEvents).values({
-      shipmentId,
-      fromStatus: from,
-      toStatus: to,
-      actorUserId: actor.id,
-      actorRole: role,
-      note,
-      proofs: input.proofs,
-      occurredAt: now,
-    });
-
-    if (to === "CANCELLED") await releaseCapacity(tx, shipment);
-    if (role === "operator" || to === "CANCELLED" || to === "DAMAGED" || to === "LOST" || to === "DISPUTED") {
-      await audit(tx, {
-        actorUserId: actor.id,
-        action: "shipment.transition",
-        entityType: "shipment",
-        entityId: shipmentId,
-        data: { from, to, role },
-      });
-    }
+    const shipment = await lockShipmentForTransition(tx, shipmentId, to === "CANCELLED");
+    if (shipment.status === "DISPUTED") throw conflict("dispute_open", "Un litige est ouvert : seule sa résolution par un opérateur peut changer le statut");
+    const proofs = await resolveProofRefs(tx, shipmentId, input.proofs);
+    await applyLockedTransition(tx, shipment, actor, { to, role, note: input.note?.trim() || null, proofs }, now);
   });
 }
-
 async function releaseCapacity(tx: Tx, shipment: ShipmentRow): Promise<void> {
   const [booking] = await tx.select().from(bookings).where(eq(bookings.id, shipment.bookingId));
   const [offer] = await tx.select().from(capacityOffers).where(eq(capacityOffers.id, shipment.offerId));
