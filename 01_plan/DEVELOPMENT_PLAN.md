@@ -6,7 +6,8 @@ Principe : petits lots cohérents, chacun avec critères d'acceptation, tests et
 |---|---|---|---|
 | 0 | Audit, catalogue de réutilisation, benchmark, architecture, décisions | `REUSE_CATALOG`, `BENCHMARK`, `ARCHITECTURE`, `DECISIONS_LOG` écrits ; licences lues dans les dépôts | ✅ 2026-10-22 |
 | 1 | **MVP** : auth, profils, offres, demandes, recherche/matching, réservation, acceptation/refus, colis, workflow par rôles, code de remise, historique, suivi public, tableau de bord, admin minimal, tests, docs | Critères de succès §23 du prompt (voir tableau ci-dessous) | ✅ 2026-10-22 |
-| 2 | Confiance et hygiène : mot de passe oublié, vérifications e-mail/téléphone, limitation de débit, litiges, notation, preuves téléversées, notifications, E2E, Dockerfile | Parcours de litige complet testé ; aucune action sensible sans limitation de débit ; preuves stockées en privé | ⏳ NEXT_STEPS P1 |
+| 2 | **Confiance et hygiène** : limitation de débit, mot de passe oublié, preuves téléversées, litiges, notation et réputation | Parcours de litige complet testé ; actions sensibles limitées en débit ; preuves stockées en privé et servies sous contrôle d'accès ; avis dans le score | ✅ 2026-10-23 (commité, non poussé) |
+| 2b | Reste du lot « confiance » : vérifications e-mail/téléphone (OTP), notifications, avis croisés aveugles, EXIF/antivirus/S3, E2E, Dockerfile | Voir NEXT_STEPS P1 ; dépend du choix des fournisseurs (P0.4) | ⏳ |
 | 3 | Agences (marché B) : organisations, membres, départs récurrents, tarifs par paliers/forfaits, tableau de bord agence | Une agence publie une route récurrente et gère ses colis avec ≥ 2 membres ; permissions par organisation testées | — |
 | 4 | Demandes avec offres (marché C) : `quotes`, comparaison, acceptation d'un devis | Plusieurs transporteurs répondent à une demande ; un seul devis accepté ; aucune surréservation | — |
 | 5 | Points relais : `relay_points`, remise assistée, retrait par code/QR | Un colis déposé et retiré en relais avec preuve horodatée | — |
@@ -42,7 +43,7 @@ Principe : petits lots cohérents, chacun avec critères d'acceptation, tests et
 |---|---|---|---|
 | **Statut juridique** (simple mise en relation vs transporteur/opérateur postal ; licence courrier — l'ARTP au Sénégal est citée dans la conversation, non vérifié) | Réglementaire, **humain** | Ouverture publique | Aucune règle inventée ; validation professionnelle (NEXT_STEPS P0.2) |
 | **Marchandises interdites ou soumises à contrôle** (douane, aérien, médicaments) | Réglementaire / sécurité | Ouverture publique | Politique interne en 3 niveaux, opt-in du transporteur, déclaration détaillée, inspection à la remise ; **non validée** |
-| **Fraude et confiance** (identité déclarée, faux colis, vol) | Produit | Montée en charge | Déclaré ≠ vérifié, revue opérateur, code de remise, journal d'audit ; manquent notation, litiges outillés, OTP téléphone |
+| **Fraude et confiance** (identité déclarée, faux colis, vol) | Produit | Montée en charge | Déclaré ≠ vérifié, revue opérateur, code de remise, journal d'audit, **avis, litiges outillés, preuves, limitation de débit (lot 2)** ; manquent OTP téléphone, avis croisés aveugles, notifications |
 | **Contournement** (accord conclu sur WhatsApp hors plateforme) | Modèle économique | Revenus | Aucune commission aujourd'hui (0 bps) ; valeur à créer par la confiance, le suivi et la réputation — à valider sur le terrain |
 | **Démarrage à froid** (pas d'offres sans voyageurs, pas de voyageurs sans demandes) | Marché | Adoption | Un seul couloir ; données réelles uniquement ; validation terrain avant les lots 3+ |
 | **Paiement et séquestre** | Réglementaire / technique | Lot 6 | Aucun paiement (D-015) ; choix du prestataire = décision humaine |

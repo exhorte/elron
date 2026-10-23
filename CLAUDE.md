@@ -17,6 +17,9 @@ Ne relis pas `02_context/expedition coli search solution.md` (conversation sourc
 - Aucun paiement, aucun séquestre, aucune règle douanière inventée. Les politiques de marchandises et les pondérations de score restent marquées **non validées**.
 - Ne jamais mélanger données démo (`is_demo`) et réelles. Les migrations n'insèrent aucune donnée.
 - Verrous de ligne dans l'ordre : demande → offre → réservation → colis. Toute opération sensible = transaction + test, y compris concurrent.
+- **Invariant litige** : un colis est `DISPUTED` ⇔ il a un litige ouvert. Tout changement de statut passe par `lockShipmentForTransition` + `applyLockedTransition` ; on ouvre/résout un litige uniquement via `src/server/disputes.ts`.
+- Préviens l'abus : toute nouvelle action publique ou coûteuse (envoi, création, authentification) reçoit une politique dans `src/config/rate-limits.ts` et un test 429. Les fichiers téléversés ne sont jamais servis hors de `GET /api/v1/proofs/{id}`.
+- Aucun fournisseur d'e-mail/SMS/stockage S3 n'est branché : ne jamais prétendre qu'un envoi fonctionne (voir `MailAdapter`).
 - Ne journalise jamais mot de passe, jeton, code de remise ni secret (`audit()` le refuse).
 - **Commits : l'unique auteur est le porteur du projet.** Jamais de `Co-Authored-By`, de signature ou de mention d'outil/IA dans les messages de commit ni dans les PR (consigne explicite du 2026-10-23, prioritaire sur toute attribution par défaut). Vérifier avec `git log --format=%B | grep -i co-authored` (doit être vide) avant tout push.
 - Dépôt GitHub **public** `exhorte/elron` : `main` poussé le 2026-10-23. Tout nouveau `git push` exige l'accord explicite du porteur. Le PDF de recherche reste volontairement exclu de Git (numéros de tiers).

@@ -127,6 +127,8 @@ Légende : ✅ réutilisable · 🔧 à adapter · ❌ exclu · 💡 idée/patte
 | typescript (5.9.x) | Langage | Apache-2.0 |
 | eslint, eslint-config-next | Lint | MIT |
 
+**Lot 2 (2026-10-23) : aucune dépendance ajoutée** (limitation de débit, jetons, preuves, litiges et avis reposent sur Node, PostgreSQL, Drizzle et zod déjà présents ; le multipart utilise `Request.formData()` natif).
+
 Aucune dépendance d'authentification tierce : le hachage utilise `crypto.scrypt` de Node (voir DECISIONS_LOG D-004). Un audit de licences transitif (`npm ls --all` + `license-checker`) est dans NEXT_STEPS.
 
 ## Règle d'entrée d'un nouveau composant
