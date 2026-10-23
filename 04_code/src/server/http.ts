@@ -20,6 +20,8 @@ export interface HandlerContext<P> {
   actor: Actor | null;
   params: P;
   now: Date;
+  /** IP client « de confiance » (voir `clientIp`), ou « unknown ». */
+  ip: string;
   /** Lit et valide le corps JSON avec un schéma zod strict. */
   body: <T>(schema: ZodType<T>) => Promise<T>;
   /** Valide les paramètres de requête. */
@@ -60,6 +62,23 @@ export function sessionTokenFrom(req: Request): string | undefined {
   return parseCookies(req.headers.get("cookie"))[SESSION_COOKIE];
 }
 
+/**
+ * IP du client pour la limitation de débit. `X-Forwarded-For` est falsifiable par le client : on ne s'y
+ * fie que derrière N proxys de confiance (`TRUSTED_PROXY_HOPS`, 0 par défaut) et on prend l'entrée que le
+ * N-ième proxy a ajoutée en partant de la droite. Sans proxy de confiance : « unknown » (compteur commun,
+ * acceptable en développement ; à configurer en production).
+ */
+export function clientIp(req: Request, env: NodeJS.ProcessEnv = process.env): string {
+  const hops = Number(env.TRUSTED_PROXY_HOPS ?? 0);
+  if (!Number.isInteger(hops) || hops <= 0) return "unknown";
+  const parts = (req.headers.get("x-forwarded-for") ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const candidate = parts.length >= hops ? parts[parts.length - hops] : undefined;
+  return candidate && candidate.length <= 45 && /^[0-9a-fA-F:.]+$/.test(candidate) ? candidate : "unknown";
+}
+
 /** Défense CSRF en profondeur (en plus de SameSite=Lax) : une requête navigateur d'une autre origine est refusée. */
 function assertSameOrigin(req: Request): void {
   const origin = req.headers.get("origin");
@@ -90,7 +109,11 @@ export function errorResponse(err: unknown): Response {
     return json({ error: { code: "validation_error", message: "Données invalides", details: issues } }, 422);
   }
   if (err instanceof AppError) {
-    return json({ error: { code: err.code, message: err.message, ...(err.details !== undefined ? { details: err.details } : {}) } }, err.status);
+    return json(
+      { error: { code: err.code, message: err.message, ...(err.details !== undefined ? { details: err.details } : {}) } },
+      err.status,
+      err.headers ?? {},
+    );
   }
   console.error("[api] erreur non gérée", err);
   return json({ error: { code: "internal_error", message: "Erreur interne" } }, 500);
@@ -125,6 +148,7 @@ export function route<P = Record<string, never>>(
         actor,
         params,
         now,
+        ip: clientIp(req),
         body: async (schema) => schema.parse(await readJsonBody(req)),
         query: (schema) => schema.parse(Object.fromEntries(new URL(req.url).searchParams.entries())),
       });

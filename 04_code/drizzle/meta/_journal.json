@@ -15,6 +15,20 @@
       "when": 1792688159579,
       "tag": "0001_immutability_triggers",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792752148583,
+      "tag": "0002_rate_limit",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792752327890,
+      "tag": "0003_password_reset",
+      "breakpoints": true
     }
   ]
 }

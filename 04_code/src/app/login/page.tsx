@@ -14,6 +14,11 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
         <AuthForm mode="login" next={next} />
       </Card>
       <p className="mt-4 text-sm">
+        <Link href="/forgot-password" className="font-medium text-emerald-800 underline dark:text-emerald-400">
+          Mot de passe oublié ?
+        </Link>
+      </p>
+      <p className="mt-2 text-sm">
         Pas encore de compte ?{" "}
         <Link href={`/register${next ? `?next=${encodeURIComponent(next)}` : ""}`} className="font-medium text-emerald-800 underline dark:text-emerald-400">
           Créer un compte

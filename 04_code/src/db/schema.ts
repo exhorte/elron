@@ -10,6 +10,7 @@ import {
   jsonb,
   pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uniqueIndex,
@@ -82,6 +83,22 @@ export const sessions = pgTable(
   (t) => [uniqueIndex("sessions_token_hash_key").on(t.tokenHash), index("sessions_user_idx").on(t.userId)],
 );
 
+/** Jetons de réinitialisation de mot de passe : seule l'empreinte SHA-256 est stockée ; usage unique ; expirants. */
+export const passwordResetTokens = pgTable(
+  "password_reset_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("password_reset_token_hash_key").on(t.tokenHash), index("password_reset_user_idx").on(t.userId)],
+);
+
 /**
  * Profil voyageur/transporteur individuel. Tout utilisateur peut expédier sans profil ; un même
  * utilisateur peut être expéditeur ET voyageur. Statut déclaré ≠ statut vérifié ≠ décision opérateur :
@@ -110,6 +127,17 @@ export const travelerProfiles = pgTable(
       sql`${t.identityStatus} <> 'verified' OR (${t.identityReviewedBy} IS NOT NULL AND ${t.identityReviewedAt} IS NOT NULL)`,
     ),
   ],
+);
+
+/** Compteurs de limitation de débit (fenêtre fixe). `key` = politique + empreinte du sujet : aucune IP ni e-mail en clair. */
+export const rateLimitBuckets = pgTable(
+  "rate_limit_buckets",
+  {
+    key: text("key").notNull(),
+    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (t) => [primaryKey({ columns: [t.key, t.windowStart] }), index("rate_limit_window_idx").on(t.windowStart)],
 );
 
 // ───────────────────────── Référentiel géographique (configurable)

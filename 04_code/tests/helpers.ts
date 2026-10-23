@@ -18,7 +18,7 @@ export const inDays = (days: number, from = new Date()) => new Date(from.getTime
 export async function resetDb(): Promise<void> {
   await getDb().execute(sql`
     TRUNCATE users, sessions, traveler_profiles, capacity_offers, shipment_requests, bookings,
-             shipments, shipment_items, shipment_events, audit_logs RESTART IDENTITY CASCADE`);
+             shipments, shipment_items, shipment_events, audit_logs, rate_limit_buckets RESTART IDENTITY CASCADE`);
 }
 
 let counter = 0;

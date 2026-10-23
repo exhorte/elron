@@ -2,12 +2,14 @@ import { z, type ZodType } from "zod";
 import {
   bookingCreateSchema,
   confirmDeliverySchema,
+  forgotPasswordSchema,
   identityReviewSchema,
   loginSchema,
   offerCreateSchema,
   reasonSchema,
   registerSchema,
   requestCreateSchema,
+  resetPasswordSchema,
   searchQuerySchema,
   transitionSchema,
   travelerProfileSchema,
@@ -30,14 +32,18 @@ export interface Operation {
   query?: ZodType;
   status?: number;
   notes?: string;
+  /** L'endpoint applique une politique de limitation de débit (réponse 429 + Retry-After). */
+  rateLimited?: boolean;
 }
 
 export const OPERATIONS: Operation[] = [
   { method: "get", path: "/api/v1/health", tag: "Système", summary: "Santé de l'application et de la base", auth: "none" },
   { method: "get", path: "/api/v1/meta", tag: "Système", summary: "Référentiels publics : couloirs ouverts, catégories de marchandises (politique non validée juridiquement), devises", auth: "none" },
 
-  { method: "post", path: "/api/v1/auth/register", tag: "Auth", summary: "Créer un compte et ouvrir une session", auth: "none", body: registerSchema, status: 201 },
-  { method: "post", path: "/api/v1/auth/login", tag: "Auth", summary: "Se connecter (5 échecs → verrouillage 15 min)", auth: "none", body: loginSchema },
+  { method: "post", path: "/api/v1/auth/register", tag: "Auth", summary: "Créer un compte et ouvrir une session", auth: "none", body: registerSchema, status: 201, rateLimited: true },
+  { method: "post", path: "/api/v1/auth/login", tag: "Auth", summary: "Se connecter (5 échecs → verrouillage 15 min)", auth: "none", body: loginSchema, rateLimited: true },
+  { method: "post", path: "/api/v1/auth/forgot-password", tag: "Auth", summary: "Demander un lien de réinitialisation (réponse identique que l'adresse existe ou non ; `deliveryConfigured` indique si l'envoi d'e-mails est réellement branché)", auth: "none", body: forgotPasswordSchema, rateLimited: true },
+  { method: "post", path: "/api/v1/auth/reset-password", tag: "Auth", summary: "Choisir un nouveau mot de passe avec le jeton reçu (usage unique, 60 min) ; ferme toutes les sessions", auth: "none", body: resetPasswordSchema, rateLimited: true },
   { method: "post", path: "/api/v1/auth/logout", tag: "Auth", summary: "Fermer la session", auth: "none" },
   { method: "get", path: "/api/v1/me", tag: "Profils", summary: "Utilisateur courant et profil voyageur", auth: "user" },
   { method: "put", path: "/api/v1/me/traveler-profile", tag: "Profils", summary: "Créer/mettre à jour le profil voyageur ; déclarer une identité (statut « declared », jamais « verified »)", auth: "user", body: travelerProfileSchema },
@@ -66,7 +72,7 @@ export const OPERATIONS: Operation[] = [
   { method: "get", path: "/api/v1/shipments/{id}", tag: "Colis", summary: "Détail, historique d'événements et transitions autorisées (parties/opérateur ; 404 pour un tiers)", auth: "user" },
   { method: "post", path: "/api/v1/shipments/{id}/transitions", tag: "Colis", summary: "Changer le statut selon la table de transitions et le rôle ; DELIVERED exige le code", auth: "user", body: transitionSchema },
   { method: "post", path: "/api/v1/shipments/{id}/delivery-code", tag: "Colis", summary: "Expéditeur : générer/régénérer le code de remise (affiché une seule fois)", auth: "user" },
-  { method: "post", path: "/api/v1/shipments/{id}/confirm-delivery", tag: "Colis", summary: "Transporteur : confirmer la remise avec le code du destinataire (5 tentatives, expiration)", auth: "user", body: confirmDeliverySchema },
+  { method: "post", path: "/api/v1/shipments/{id}/confirm-delivery", tag: "Colis", summary: "Transporteur : confirmer la remise avec le code du destinataire (5 tentatives, expiration)", auth: "user", body: confirmDeliverySchema, rateLimited: true },
   { method: "get", path: "/api/v1/track/{code}", tag: "Colis", summary: "Suivi public par code (sans donnée personnelle)", auth: "none" },
 
   { method: "get", path: "/api/v1/admin/identity-reviews", tag: "Administration", summary: "Identités déclarées en attente de revue", auth: "operator" },
@@ -101,6 +107,7 @@ function errorResponses(op: Operation): Record<string, unknown> {
   if (op.path.includes("{")) out["404"] = ref;
   if (op.method !== "get") out["409"] = ref;
   if (op.body || op.query || op.path.includes("{")) out["422"] = ref;
+  if (op.rateLimited) out["429"] = ref;
   return out;
 }
 

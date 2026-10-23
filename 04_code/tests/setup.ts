@@ -6,6 +6,7 @@ process.env.SCRYPT_N = "1024"; // hachage rapide pour les tests (le coût est en
 process.env.PLATFORM_FEE_BPS = "0";
 delete process.env.ALX_SHOW_DEMO;
 delete process.env.ALX_MATCHING_WEIGHTS;
+delete process.env.TRUSTED_PROXY_HOPS;
 
 afterAll(async () => {
   const { closeDb } = await import("../src/db/client");

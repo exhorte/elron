@@ -5,6 +5,8 @@ export class AppError extends Error {
     readonly code: string,
     message: string,
     readonly details?: unknown,
+    /** En-têtes HTTP à ajouter à la réponse (ex. `Retry-After`). */
+    readonly headers?: Record<string, string>,
   ) {
     super(message);
     this.name = "AppError";
@@ -18,3 +20,7 @@ export const conflict = (code: string, message: string, details?: unknown) => ne
 export const invalid = (code: string, message: string, details?: unknown) => new AppError(422, code, message, details);
 export const tooManyRequests = (code: string, message: string) => new AppError(429, code, message);
 export const locked = (code: string, message: string) => new AppError(423, code, message);
+
+/** 429 de limitation de débit, avec `Retry-After` en secondes. */
+export const rateLimited = (retryAfterSeconds: number) =>
+  new AppError(429, "rate_limited", "Trop de requêtes. Réessayez plus tard.", { retryAfterSeconds }, { "retry-after": String(retryAfterSeconds) });

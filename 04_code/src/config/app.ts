@@ -32,6 +32,18 @@ export function showDemoByDefault(env: NodeJS.ProcessEnv = process.env): boolean
   return env.ALX_SHOW_DEMO === "true";
 }
 
+/** URL publique de l'application, utilisée dans les e-mails. Jamais déduite de l'en-tête Host (injection). */
+export function getAppBaseUrl(env: NodeJS.ProcessEnv = process.env): string {
+  const url = env.APP_BASE_URL;
+  if (!url) {
+    if (isProduction(env)) throw new Error("APP_BASE_URL est obligatoire en production");
+    return "http://localhost:3000";
+  }
+  return url.replace(/\/+$/, "");
+}
+
+export const PASSWORD_RESET_TTL_MINUTES = 60;
+
 export const SESSION_COOKIE = "alx_session";
 export const SESSION_TTL_DAYS = 14;
 export const LOGIN_MAX_FAILURES = 5;

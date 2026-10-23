@@ -31,6 +31,12 @@ export type RegisterInput = z.infer<typeof registerSchema>;
 export const loginSchema = z.strictObject({ email, password: z.string().min(1).max(128) });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+export const forgotPasswordSchema = z.strictObject({ email });
+export const resetPasswordSchema = z.strictObject({
+  token: z.string().min(20).max(100).regex(/^[A-Za-z0-9_-]+$/, "Jeton invalide"),
+  password,
+});
+
 export const travelerProfileSchema = z.strictObject({
   bio: longText(500).nullish(),
   declaredLegalName: z.string().trim().min(2).max(120).nullish(),
